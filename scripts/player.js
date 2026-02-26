@@ -45,15 +45,23 @@ export class PartyMember {
   }
 
   updateCooldowns(dt) {
+    this.cooldowns = { attack: 0, skill1: 0, skill2: 0, ...(this.cooldowns || {}) };
     for (const key of Object.keys(this.cooldowns)) {
-      this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
+      this.cooldowns[key] = Math.max(0, Number(this.cooldowns[key]) - dt || 0);
     }
 
-    this.statuses = this.statuses.filter((status) => {
-      status.duration -= dt;
-      if (status.id === 'poison') this.hp = Math.max(0, this.hp - dt * status.dps);
-      return status.duration > 0;
-    });
+    const activeStatuses = Array.isArray(this.statuses) ? this.statuses : [];
+    this.statuses = activeStatuses
+      .filter((status) => status && typeof status === 'object')
+      .filter((status) => {
+        status.duration = Math.max(0, Number(status.duration) || 0);
+        status.duration -= dt;
+        if (status.id === 'poison') {
+          const dps = Number(status.dps) || 0;
+          this.hp = Math.max(0, this.hp - dt * dps);
+        }
+        return status.duration > 0;
+      });
   }
 
   gainLevel() {
@@ -91,7 +99,7 @@ export class Party {
   }
 
   get active() {
-    return this.members[this.activeIndex];
+    return this.members[this.activeIndex] || this.members[0];
   }
 
   switchActive() {

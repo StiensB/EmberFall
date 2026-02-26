@@ -569,6 +569,87 @@ class EmberFallGame {
     this.ui.renderHud();
   }
 
+
+  drawEnemySprite(enemy) {
+    const ctx = this.renderer.sceneCtx;
+    const pulse = Math.sin(this.elapsed * 6 + enemy.x * 0.02) * 0.8;
+
+    if (enemy.type === 'slime') {
+      ctx.fillStyle = enemy.color;
+      ctx.beginPath();
+      ctx.ellipse(enemy.x, enemy.y + 2 + pulse, enemy.radius + 3, enemy.radius - 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(enemy.x - 4, enemy.y - 4 + pulse, enemy.radius * 0.45, enemy.radius * 0.3, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (enemy.type === 'bat') {
+      ctx.fillStyle = '#7f6fdb';
+      ctx.beginPath();
+      ctx.ellipse(enemy.x, enemy.y + pulse, enemy.radius * 0.7, enemy.radius * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#9f8cff';
+      ctx.beginPath();
+      ctx.moveTo(enemy.x - enemy.radius * 0.5, enemy.y + pulse);
+      ctx.quadraticCurveTo(enemy.x - enemy.radius * 1.6, enemy.y - enemy.radius * 0.8 + pulse, enemy.x - enemy.radius * 1.9, enemy.y + enemy.radius * 0.3 + pulse);
+      ctx.quadraticCurveTo(enemy.x - enemy.radius * 1.3, enemy.y + enemy.radius * 0.1 + pulse, enemy.x - enemy.radius * 0.7, enemy.y + enemy.radius * 0.55 + pulse);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(enemy.x + enemy.radius * 0.5, enemy.y + pulse);
+      ctx.quadraticCurveTo(enemy.x + enemy.radius * 1.6, enemy.y - enemy.radius * 0.8 + pulse, enemy.x + enemy.radius * 1.9, enemy.y + enemy.radius * 0.3 + pulse);
+      ctx.quadraticCurveTo(enemy.x + enemy.radius * 1.3, enemy.y + enemy.radius * 0.1 + pulse, enemy.x + enemy.radius * 0.7, enemy.y + enemy.radius * 0.55 + pulse);
+      ctx.closePath();
+      ctx.fill();
+    } else if (enemy.type === 'mushroom') {
+      ctx.fillStyle = '#f6cab4';
+      ctx.fillRect(enemy.x - 4, enemy.y - 1, 8, enemy.radius + 3);
+      ctx.fillStyle = '#f08b72';
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y - 2 + pulse, enemy.radius + 3, Math.PI, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffdcd2';
+      ctx.fillRect(enemy.x - 9, enemy.y + 1, 3, 3);
+      ctx.fillRect(enemy.x + 5, enemy.y - 1, 3, 3);
+    } else if (enemy.type === 'wraith') {
+      const grad = ctx.createLinearGradient(enemy.x, enemy.y - enemy.radius - 4, enemy.x, enemy.y + enemy.radius + 8);
+      grad.addColorStop(0, '#b8c4ff');
+      grad.addColorStop(1, 'rgba(122,141,255,0.2)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(enemy.x, enemy.y - enemy.radius - 4 + pulse);
+      ctx.quadraticCurveTo(enemy.x - enemy.radius - 5, enemy.y - 2, enemy.x - enemy.radius + 2, enemy.y + enemy.radius + 7);
+      ctx.quadraticCurveTo(enemy.x - 2, enemy.y + enemy.radius - 2, enemy.x + enemy.radius - 3, enemy.y + enemy.radius + 7);
+      ctx.quadraticCurveTo(enemy.x + enemy.radius + 7, enemy.y - 1, enemy.x, enemy.y - enemy.radius - 4 + pulse);
+      ctx.fill();
+    } else if (enemy.type === 'sentinel') {
+      ctx.fillStyle = '#8dc8c5';
+      ctx.beginPath();
+      ctx.roundRect(enemy.x - enemy.radius + 2, enemy.y - enemy.radius + 2, enemy.radius * 2 - 4, enemy.radius * 2 - 4, 6);
+      ctx.fill();
+      ctx.fillStyle = '#6ea8a5';
+      ctx.fillRect(enemy.x - 3, enemy.y - enemy.radius + 4, 6, enemy.radius * 2 - 8);
+      ctx.fillRect(enemy.x - enemy.radius + 4, enemy.y - 3, enemy.radius * 2 - 8, 6);
+    } else {
+      ctx.fillStyle = '#ff76a7';
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y, enemy.radius + 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd57e';
+      ctx.beginPath();
+      ctx.moveTo(enemy.x, enemy.y - enemy.radius - 8);
+      ctx.lineTo(enemy.x - 8, enemy.y - enemy.radius + 2);
+      ctx.lineTo(enemy.x + 8, enemy.y - enemy.radius + 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#1a1d35';
+    ctx.fillRect(enemy.x - 6, enemy.y - 3, 3, 3);
+    ctx.fillRect(enemy.x + 3, enemy.y - 3, 3, 3);
+  }
+
   draw() {
     const { sceneCtx: ctx, scale } = this.renderer.beginFrame();
     const lead = this.party.active;
@@ -604,10 +685,7 @@ class EmberFallGame {
     });
 
     this.enemies.forEach((e) => {
-      ctx.fillStyle = e.color;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-      ctx.fill();
+      this.drawEnemySprite(e);
       ctx.fillStyle = '#112';
       ctx.fillRect(e.x - 16, e.y - e.radius - 14, 32, 4);
       ctx.fillStyle = '#ff7b99';
@@ -717,9 +795,27 @@ class EmberFallGame {
     const state = loadState();
     if (!state) return;
     this.world.changeZone(state.zoneId || 'town');
-    if (state.party?.members) {
-      state.party.members.forEach((saved, idx) => Object.assign(this.party.members[idx], saved));
-      this.party.activeIndex = state.party.activeIndex || 0;
+    if (Array.isArray(state.party?.members)) {
+      state.party.members.forEach((saved, idx) => {
+        const member = this.party.members[idx];
+        if (!member || !saved || typeof saved !== 'object') return;
+        Object.assign(member, saved);
+      });
+      this.party.members.forEach((member) => {
+        member.statuses = Array.isArray(member.statuses) ? member.statuses : [];
+        member.cooldowns = { attack: 0, skill1: 0, skill2: 0, ...(member.cooldowns || {}) };
+        if (!member.direction || typeof member.direction !== 'object') member.direction = { x: 1, y: 0 };
+        if (!member.stats || typeof member.stats !== 'object') member.stats = { ...member.baseStats };
+        if (!Number.isFinite(member.x) || !Number.isFinite(member.y)) {
+          member.x = this.party.members[0].x;
+          member.y = this.party.members[0].y;
+        }
+        member.hp = Number.isFinite(member.hp) ? Math.max(0, Math.min(member.hp, member.stats.maxHp || member.baseStats.maxHp)) : (member.stats.maxHp || member.baseStats.maxHp);
+        member.mana = Number.isFinite(member.mana) ? Math.max(0, Math.min(member.mana, member.stats.maxMana || member.baseStats.maxMana)) : (member.stats.maxMana || member.baseStats.maxMana);
+      });
+      const maxIndex = Math.max(0, this.party.members.length - 1);
+      const savedIndex = Number.isInteger(state.party.activeIndex) ? state.party.activeIndex : 0;
+      this.party.activeIndex = Math.max(0, Math.min(maxIndex, savedIndex));
     }
     this.inventory.hydrate(state.inventory);
     this.questSystem.hydrate(state.quests);
