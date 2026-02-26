@@ -221,7 +221,7 @@ class EmberFallGame {
         lines.push('Hungry? Grab some healing food from the shop ledger.');
       } else {
         this.activeShop = null;
-        lines.push('Bring me 3 Slime Gel and I'll open the kitchen shop.');
+        lines.push('Bring me 3 Slime Gel and I\'ll open the kitchen shop.');
       }
       if (activeNpcQuest) lines.push(`Current order: ${activeNpcQuest.description}`);
     }
