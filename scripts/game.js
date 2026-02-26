@@ -259,11 +259,20 @@ class EmberFallGame {
     ctx.ellipse(member.x, member.y + 20, 13, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Base body
-    ctx.fillStyle = member.color;
+    // Base body with richer shading for HD readability
+    const bodyGrad = ctx.createLinearGradient(member.x, member.y - 2 + bob, member.x, member.y + 20 + bob);
+    bodyGrad.addColorStop(0, '#ffffff2e');
+    bodyGrad.addColorStop(0.35, member.color);
+    bodyGrad.addColorStop(1, '#1c213a66');
+    ctx.fillStyle = bodyGrad;
     ctx.beginPath();
     ctx.roundRect(member.x - 10, member.y - 2 + bob, 20, 20, 6);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(17, 20, 36, 0.45)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(member.x - 10, member.y - 2 + bob, 20, 20, 6);
+    ctx.stroke();
 
     // Class outfit silhouettes
     if (member.className === 'Warrior') {
@@ -275,6 +284,10 @@ class EmberFallGame {
       ctx.fillRect(member.x - 3, member.y + 1 + bob, 6, 9);
       ctx.fillStyle = visual.trim;
       ctx.fillRect(member.x - 9, member.y + 10 + bob, 18, 2);
+      // Bracer accents
+      ctx.fillStyle = '#8e9cc3';
+      ctx.fillRect(member.x - 11, member.y + 8 + bob, 3, 5);
+      ctx.fillRect(member.x + 8, member.y + 8 + bob, 3, 5);
     } else if (member.className === 'Mage') {
       // Arcane robe + pendant
       ctx.fillStyle = visual.cloth;
@@ -291,6 +304,12 @@ class EmberFallGame {
       ctx.beginPath();
       ctx.arc(member.x, member.y + 13 + bob, 2, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = '#d5f2ff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(member.x, member.y + 6 + bob);
+      ctx.lineTo(member.x, member.y + 16 + bob);
+      ctx.stroke();
     } else if (member.className === 'Ranger') {
       // Ranger vest + quiver strap
       ctx.fillStyle = '#3f6448';
@@ -303,10 +322,19 @@ class EmberFallGame {
       ctx.fillStyle = '#d8c293';
       ctx.fillRect(-1, -9, 2, 18);
       ctx.restore();
+      ctx.fillStyle = '#5e7a43';
+      ctx.fillRect(member.x - 4, member.y + 8 + bob, 8, 2);
     }
 
     // Head + class-themed hair
     ctx.fillStyle = '#ffe8d2';
+    ctx.beginPath();
+    ctx.arc(member.x, member.y - 10 + bob, 14, 0, Math.PI * 2);
+    ctx.fill();
+    const skinHi = ctx.createRadialGradient(member.x - 4, member.y - 15 + bob, 1, member.x, member.y - 10 + bob, 13);
+    skinHi.addColorStop(0, 'rgba(255,255,255,0.35)');
+    skinHi.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = skinHi;
     ctx.beginPath();
     ctx.arc(member.x, member.y - 10 + bob, 14, 0, Math.PI * 2);
     ctx.fill();
@@ -349,6 +377,11 @@ class EmberFallGame {
     ctx.fillStyle = '#ffb4c7';
     ctx.fillRect(member.x - 8, member.y - 9 + bob, 2, 2);
     ctx.fillRect(member.x + 6, member.y - 9 + bob, 2, 2);
+
+    // subtle boots for fuller silhouette
+    ctx.fillStyle = '#2f3857';
+    ctx.fillRect(member.x - 8, member.y + 17 + bob, 5, 2);
+    ctx.fillRect(member.x + 3, member.y + 17 + bob, 5, 2);
 
     // Lead indicator
     if (isLead) {
@@ -487,10 +520,17 @@ class EmberFallGame {
       ctx.ellipse(e.x, e.y + e.radius + 5, e.radius * 0.8, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = e.color;
+      const enemyGrad = ctx.createRadialGradient(e.x - e.radius * 0.3, e.y - e.radius * 0.35, 2, e.x, e.y, e.radius + 2);
+      enemyGrad.addColorStop(0, '#ffffff3d');
+      enemyGrad.addColorStop(0.32, e.color);
+      enemyGrad.addColorStop(1, '#15192f99');
+      ctx.fillStyle = enemyGrad;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(23, 28, 50, 0.7)';
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.beginPath();
       ctx.arc(e.x - e.radius * 0.3, e.y - e.radius * 0.3, e.radius * 0.35, 0, Math.PI * 2);
@@ -501,6 +541,9 @@ class EmberFallGame {
       ctx.fillRect(e.x - 5, e.y - 3, 2, 2);
       ctx.fillRect(e.x + 3, e.y - 3, 2, 2);
       ctx.fillRect(e.x - 2, e.y + 2, 4, 2);
+      ctx.fillStyle = '#ffd7df';
+      ctx.fillRect(e.x - 7, e.y + 1, 2, 2);
+      ctx.fillRect(e.x + 5, e.y + 1, 2, 2);
 
       ctx.fillStyle = '#112';
       const hpW = 34;
