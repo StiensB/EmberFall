@@ -69,7 +69,7 @@ export class World {
 
   get zone() {
     if (this.zoneId === 'dungeon' && this.dynamicDungeon) return this.dynamicDungeon;
-    return WORLD_DATA[this.zoneId];
+    return WORLD_DATA[this.zoneId] || WORLD_DATA.town;
   }
 
   setDynamicDungeon(zone) {
@@ -77,7 +77,11 @@ export class World {
   }
 
   changeZone(id) {
-    this.zoneId = id;
+    if (id === 'dungeon' || WORLD_DATA[id]) {
+      this.zoneId = id;
+      return true;
+    }
+    return false;
   }
 
   resolveCollision(x, y, radius) {
