@@ -38,6 +38,8 @@ class EmberFallGame {
     this.renderCamera = { x: 0, y: 0 };
     this.renderZoom = 1;
     this.zoneRespawnAt = 0;
+    this.enemyProjectiles = [];
+    this.worldPickups = [];
 
     this.installControls();
     this.loadGame();
@@ -191,6 +193,7 @@ class EmberFallGame {
     if (questToTurnIn) {
       const ok = this.questSystem.claim(questToTurnIn, this.inventory, (xp) => this.addXp(xp));
       if (ok) {
+        this.refreshWorldPickups();
         this.audio.playQuest();
         lines.push('Quest complete! Rewards delivered.');
         if (npc.id === 'chef') lines.push('Kitchen shop unlocked and new orders are posted.');
@@ -247,6 +250,8 @@ class EmberFallGame {
     const zone = this.world.zone;
     this.enemies = [];
     this.zoneRespawnAt = 0;
+    this.enemyProjectiles = [];
+    this.refreshWorldPickups();
     const modifiers = this.world.zoneId === 'dungeon' ? this.dungeon.currentRun?.modifiers || [] : [];
     for (const pack of zone.enemySpawns) {
       for (let i = 0; i < pack.count; i += 1) {
@@ -259,12 +264,17 @@ class EmberFallGame {
     const lead = this.party.active;
     if (lead.hp <= 0) return;
     const speedBoost = lead.speedBoostTimer && this.elapsed < lead.speedBoostTimer ? 1.5 : 1;
+    const hindrance = (lead.statuses || []).reduce((acc, status) => {
+      if (status.id === 'slowed') return Math.max(acc, status.strength || 0.3);
+      if (status.id === 'ensnared') return Math.max(acc, status.strength || 0.55);
+      return acc;
+    }, 0);
     const nx = this.input.moveX;
     const ny = this.input.moveY;
     const len = Math.hypot(nx, ny);
     if (len > 0.02) {
       lead.direction = { x: nx / len, y: ny / len };
-      const speed = lead.stats.speed * speedBoost;
+      const speed = lead.stats.speed * speedBoost * (1 - hindrance);
       const next = this.world.resolveCollision(lead.x + (nx / len) * speed * dt, lead.y + (ny / len) * speed * dt, lead.radius);
       lead.x = next.x;
       lead.y = next.y;
@@ -289,6 +299,87 @@ class EmberFallGame {
     }
   }
 
+
+  refreshWorldPickups() {
+    const pickupActive = this.questSystem.active.get('smith_delivery')?.progress < 1;
+    this.worldPickups = pickupActive ? [{ id: 'frost_coil', zone: 'north', x: 1560, y: 360, radius: 20, item: 'Frost Coil' }] : [];
+  }
+
+  checkWorldPickupCollection() {
+    const lead = this.party.active;
+    this.worldPickups = this.worldPickups.filter((pickup) => {
+      if (pickup.zone !== this.world.zoneId) return true;
+      if (Math.hypot(lead.x - pickup.x, lead.y - pickup.y) > lead.radius + pickup.radius) return true;
+      this.questSystem.onItemCollected(pickup.item);
+      this.messages.unshift(`Picked up ${pickup.item} for Smith Bop.`);
+      return false;
+    });
+  }
+
+
+  handleEnemyIntent(enemy) {
+    if (!enemy.intent) return;
+    const lead = this.party.active;
+
+    if (enemy.intent.type === 'projectile') {
+      const dx = lead.x - enemy.x;
+      const dy = lead.y - enemy.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      this.enemyProjectiles.push({
+        x: enemy.x,
+        y: enemy.y,
+        vx: (dx / dist) * 130,
+        vy: (dy / dist) * 130,
+        life: 2.6,
+        radius: 8,
+        damage: Math.round(enemy.attack * 0.95),
+      });
+      this.combat.spawnParticles(enemy.x, enemy.y, '#9dd8ff', 12);
+    }
+
+    if (enemy.intent.type === 'ally_shield') {
+      const allies = this.enemies
+        .filter((other) => other !== enemy && other.hp > 0 && Math.hypot(other.x - enemy.x, other.y - enemy.y) < 180)
+        .slice(0, 2);
+      allies.forEach((ally) => ally.addStatus('barrier', 3.2, { reduction: 0.35 }));
+      if (allies.length) this.combat.spawnParticles(enemy.x, enemy.y, '#d9f2ff', 18);
+    }
+
+    if (enemy.intent.type === 'web_trap') {
+      lead.statuses = lead.statuses || [];
+      lead.statuses.push({ id: 'ensnared', duration: 1.7, strength: 0.45 });
+      this.combat.spawnParticles(lead.x, lead.y, '#e8efff', 10);
+    }
+
+    if (enemy.intent.type === 'summon_spiderling') {
+      this.enemies.push(new Enemy({ type: 'spiderling', level: Math.max(1, enemy.level - 1), x: enemy.x + (Math.random() - 0.5) * 80, y: enemy.y + (Math.random() - 0.5) * 80 }));
+      this.combat.spawnParticles(enemy.x, enemy.y, '#d8def4', 14);
+    }
+
+    enemy.intent = null;
+  }
+
+  updateEnemyProjectiles(dt) {
+    const lead = this.party.active;
+    this.enemyProjectiles = this.enemyProjectiles.filter((proj) => {
+      proj.life -= dt;
+      proj.x += proj.vx * dt;
+      proj.y += proj.vy * dt;
+      if (proj.life <= 0) return false;
+
+      if (Math.hypot(proj.x - lead.x, proj.y - lead.y) < lead.radius + proj.radius) {
+        const defense = lead.stats?.defense ?? lead.baseStats?.defense ?? 0;
+        const damage = Math.max(1, Math.round(proj.damage - defense * 0.25));
+        lead.hp = Math.max(0, lead.hp - damage);
+        lead.statuses = lead.statuses || [];
+        lead.statuses.push({ id: 'slowed', duration: 2, strength: 0.35 });
+        this.combat.spawnParticles(lead.x, lead.y, '#9ed8ff', 12);
+        return false;
+      }
+
+      return true;
+    });
+  }
   addXp(value) {
     this.xp += value;
     while (this.xp >= this.levelXp) {
@@ -304,10 +395,13 @@ class EmberFallGame {
   update(dt) {
     this.elapsed += dt;
     this.moveLeader(dt);
+    this.checkWorldPickupCollection();
     this.party.updateFollow(dt);
     this.enemies.forEach((enemy) => {
       if (enemy.updateAI(dt, this.party.active, this.world)) this.combat.enemyAttack(enemy, this.party.active);
+      this.handleEnemyIntent(enemy);
     });
+    this.updateEnemyProjectiles(dt);
     this.enemies = this.combat.processDeaths(this.enemies, (xp) => this.addXp(xp));
     this.combat.updateParticles(dt);
 
@@ -676,6 +770,39 @@ class EmberFallGame {
       ctx.fillStyle = '#6ea8a5';
       ctx.fillRect(enemy.x - 3, enemy.y - enemy.radius + 4, 6, enemy.radius * 2 - 8);
       ctx.fillRect(enemy.x - enemy.radius + 4, enemy.y - 3, enemy.radius * 2 - 8, 6);
+    } else if (enemy.type === 'rockling') {
+      ctx.fillStyle = enemy.exposedTimer > 0 ? '#c4d2e4' : '#7f92aa';
+      ctx.beginPath();
+      ctx.roundRect(enemy.x - enemy.radius, enemy.y - enemy.radius, enemy.radius * 2, enemy.radius * 2, 5);
+      ctx.fill();
+      ctx.fillStyle = '#5f7088';
+      ctx.fillRect(enemy.x - 5, enemy.y - enemy.radius + 3, 10, enemy.radius * 2 - 6);
+    } else if (enemy.type === 'wobble_mage') {
+      ctx.fillStyle = '#8fc7ff';
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#dff0ff';
+      ctx.fillRect(enemy.x - 3, enemy.y - enemy.radius - 9, 6, 10);
+      ctx.fillStyle = '#b7e0ff';
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y + enemy.radius + 2, enemy.radius * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (enemy.type === 'silkweaver' || enemy.type === 'spiderling') {
+      ctx.fillStyle = enemy.type === 'silkweaver' ? '#cdd8f7' : '#9ca8cb';
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y, enemy.radius * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.strokeStyle = '#7f8fb7';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(enemy.x - enemy.radius * 0.6, enemy.y + i * 4);
+        ctx.lineTo(enemy.x - enemy.radius - 7, enemy.y + i * 8);
+        ctx.moveTo(enemy.x + enemy.radius * 0.6, enemy.y + i * 4);
+        ctx.lineTo(enemy.x + enemy.radius + 7, enemy.y + i * 8);
+        ctx.stroke();
+      }
     } else {
       ctx.fillStyle = '#ff76a7';
       ctx.beginPath();
@@ -721,6 +848,17 @@ class EmberFallGame {
       this.renderer.drawNormalDisc(npc.x * scale, npc.y * scale, 24 * scale, 0.85);
     });
 
+    this.worldPickups.filter((pickup) => pickup.zone === this.world.zoneId).forEach((pickup) => {
+      const bob = Math.sin(this.elapsed * 4 + pickup.x * 0.03) * 2;
+      ctx.fillStyle = '#8fe9ff';
+      ctx.beginPath();
+      ctx.arc(pickup.x, pickup.y - 6 + bob, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e9fbff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(pickup.x - 8, pickup.y - 24 + bob, 16, 16);
+    });
+
     this.enemies.forEach((e) => {
       ctx.fillStyle = 'rgba(10, 12, 22, 0.35)';
       ctx.beginPath();
@@ -728,7 +866,6 @@ class EmberFallGame {
       ctx.fill();
       this.renderer.drawNormalDisc(e.x * scale, e.y * scale, (e.radius + 8) * scale, 0.95);
     });
-
     this.enemies.forEach((e) => {
       this.drawEnemySprite(e);
       ctx.fillStyle = '#112';
@@ -750,6 +887,13 @@ class EmberFallGame {
 
     this.party.members.forEach((m, idx) => this.drawCharacter(m, idx === this.party.activeIndex));
     this.party.members.forEach((m) => this.renderer.drawNormalDisc(m.x * scale, m.y * scale, 26 * scale, 1));
+
+    this.enemyProjectiles.forEach((proj) => {
+      ctx.fillStyle = '#9fd7ff';
+      ctx.beginPath();
+      ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
     this.combat.particles.forEach((p) => {
       ctx.globalAlpha = Math.max(0, p.life);
@@ -869,6 +1013,7 @@ class EmberFallGame {
     if (this.dungeon.currentRun?.zone) this.world.setDynamicDungeon(this.dungeon.currentRun.zone);
     this.xp = state.xp || 0;
     this.levelXp = state.levelXp || 100;
+    this.refreshWorldPickups();
   }
 
   resizeCanvas() {

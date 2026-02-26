@@ -128,6 +128,11 @@ export class CombatSystem {
     const vulnerable = defender.statuses?.find((status) => status.id === 'vulnerable');
     if (vulnerable) damage *= 1 + (vulnerable.amp || 0.1);
 
+    const barrier = defender.statuses?.find((status) => status.id === 'barrier');
+    if (barrier) damage *= 1 - (barrier.reduction || 0.35);
+
+    if (defender.type === 'rockling' && (defender.exposedTimer || 0) <= 0) damage *= 0.22;
+
     const critChance = options.critChance || 0;
     if (Math.random() < critChance) damage *= options.critMult || 1.6;
 
@@ -221,7 +226,8 @@ export class CombatSystem {
   }
 
   enemyAttack(enemy, target) {
-    enemy.cooldown = enemy.type === 'boss' ? 0.72 : 1.12;
+    const rangedCaster = enemy.type === 'wobble_mage';
+    enemy.cooldown = enemy.type === 'boss' ? 0.72 : rangedCaster ? 1.85 : 1.12;
     const base = Math.max(1, Math.round(enemy.attack * (0.92 + Math.random() * 0.22)));
     const defense = target.stats?.defense ?? target.baseStats?.defense ?? 0;
 
@@ -231,6 +237,17 @@ export class CombatSystem {
     const passiveMit = target.className === 'Warrior' ? 0.9 : 1;
     const damage = Math.max(1, Math.round((base - defense * 0.34) * passiveMit * 1.15 * guardReduction));
     target.hp = Math.max(0, target.hp - damage);
+
+    if (enemy.type === 'rockling') enemy.exposedTimer = 1.4;
+    if (enemy.type === 'wobble_mage') {
+      target.statuses = target.statuses || [];
+      target.statuses.push({ id: 'slowed', duration: 1.8, strength: 0.35 });
+      this.spawnParticles(target.x, target.y, '#8fd2ff', 14);
+    }
+    if (enemy.type === 'silkweaver' && Math.random() < 0.42) {
+      target.statuses = target.statuses || [];
+      target.statuses.push({ id: 'ensnared', duration: 1.4, strength: 0.6 });
+    }
 
     if (enemy.modifiers.some((m) => m.id === 'plague') && Math.random() < 0.22) {
       target.statuses = target.statuses || [];
