@@ -41,6 +41,12 @@ export class UIController {
     if (shouldOpen) this.renderMenu();
   }
 
+  openShop(shopkeeperName) {
+    this.menuTab = 'shop';
+    this.toggleMenu(true);
+    this.game.messages.unshift(`${shopkeeperName}'s shop is open.`);
+  }
+
   setDialogue(text, isOpen) {
     this.elements.dialogueText.textContent = text;
     this.elements.dialogueBox.classList.toggle('hidden', !isOpen);
@@ -109,6 +115,34 @@ export class UIController {
 
     if (this.menuTab === 'map') {
       this.elements.menuContent.innerHTML = `<h3>Region</h3><p>${world.zone.name}</p><p>Use glowing rectangles for zone exits.</p><p>Boss waits in Giggle Cavern.</p>`;
+    }
+
+    if (this.menuTab === 'shop') {
+      const shopStock = this.game.getShopStock();
+      if (!shopStock.length) {
+        this.elements.menuContent.innerHTML = '<h3>Shop</h3><p>Talk to the smith or chef in town to open a shop.</p>';
+        return;
+      }
+
+      const stockList = shopStock
+        .map((item) => {
+          if (item.type === 'equipment') {
+            const statText = Object.entries(item.stats)
+              .map(([stat, value]) => `+${value} ${stat}`)
+              .join(', ');
+            return `<li><strong>${item.name}</strong> (${item.cost}g)<br/><small>${statText}</small><br/><button class="ui-btn" data-buy="${item.id}">Buy</button></li>`;
+          }
+          return `<li><strong>${item.name}</strong> (${item.cost}g)<br/><small>Heals the full party for ${item.heal} HP.</small><br/><button class="ui-btn" data-buy="${item.id}">Buy</button></li>`;
+        })
+        .join('');
+
+      this.elements.menuContent.innerHTML = `<h3>Shop</h3><p>Gold: ${inventory.gold}</p><ul>${stockList}</ul>`;
+      this.elements.menuContent.querySelectorAll('[data-buy]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.game.buyFromShop(btn.dataset.buy);
+          this.renderMenu();
+        });
+      });
     }
   }
 }

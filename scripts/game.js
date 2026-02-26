@@ -8,6 +8,18 @@ import { UIController } from './ui.js';
 import { AudioSystem } from './audio.js';
 import { loadState, saveState } from './saveSystem.js';
 
+const SHOP_STOCK = {
+  smith: [
+    { id: 'bronze_edge', name: 'Bronze Edge', type: 'equipment', cost: 55, slot: 'weapon', stats: { attack: 8 } },
+    { id: 'oak_guard', name: 'Oak Guard', type: 'equipment', cost: 60, slot: 'armor', stats: { maxHp: 28, defense: 5 } },
+    { id: 'ember_charm', name: 'Ember Charm', type: 'equipment', cost: 50, slot: 'charm', stats: { maxMana: 24, attack: 2 } },
+  ],
+  chef: [
+    { id: 'berry_broth', name: 'Berry Broth', type: 'food', cost: 18, heal: 45 },
+    { id: 'hearty_stew', name: 'Hearty Stew', type: 'food', cost: 40, heal: 95 },
+  ],
+};
+
 class EmberFallGame {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
@@ -25,6 +37,7 @@ class EmberFallGame {
     this.enemies = [];
     this.messages = ['Tap canvas once to enable tiny synth sounds.'];
     this.dialogueQueue = [];
+    this.activeShop = null;
     this.lastTime = performance.now();
     this.elapsed = 0;
     this.input = { moveX: 0, moveY: 0 };
@@ -133,6 +146,18 @@ class EmberFallGame {
       }
     }
 
+    if (npc.id === 'smith') {
+      this.activeShop = 'smith';
+      this.ui.openShop(npc.name);
+      lines.push('Browse my upgrades in the shop ledger.');
+    }
+
+    if (npc.id === 'chef') {
+      this.activeShop = 'chef';
+      this.ui.openShop(npc.name);
+      lines.push('Hungry? Grab some healing food from the shop ledger.');
+    }
+
     this.dialogueQueue = lines;
     this.advanceDialogue();
   }
@@ -192,6 +217,7 @@ class EmberFallGame {
     const exit = this.world.getExitAt(lead.x, lead.y);
     if (exit) {
       this.world.changeZone(exit.to);
+      this.activeShop = null;
       this.party.members.forEach((m) => {
         m.x = exit.spawn.x + Math.random() * 20;
         m.y = exit.spawn.y + Math.random() * 20;
@@ -213,8 +239,43 @@ class EmberFallGame {
     const inTown = this.world.zoneId === 'town';
     this.party.members.forEach((m) => {
       m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
+      // HP recovery is only from town rest or purchased food.
       if (inTown && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
     });
+  }
+
+  getShopStock() {
+    if (!this.activeShop) return [];
+    return SHOP_STOCK[this.activeShop] || [];
+  }
+
+  buyFromShop(itemId) {
+    const stock = this.getShopStock();
+    const item = stock.find((entry) => entry.id === itemId);
+    if (!item) return;
+    if (this.inventory.gold < item.cost) {
+      this.messages.unshift('Not enough gold.');
+      return;
+    }
+
+    this.inventory.gold -= item.cost;
+    if (item.type === 'equipment') {
+      this.inventory.equipmentBag.push({
+        id: item.id,
+        name: item.name,
+        slot: item.slot,
+        stats: { ...item.stats },
+      });
+      this.messages.unshift(`Bought ${item.name}. Check your bag to equip it.`);
+      return;
+    }
+
+    if (item.type === 'food') {
+      this.party.members.forEach((member) => {
+        if (member.hp > 0) member.hp = Math.min(member.stats.maxHp, member.hp + item.heal);
+      });
+      this.messages.unshift(`Ate ${item.name}. Party healed for ${item.heal} HP.`);
+    }
   }
 
   update(dt) {
