@@ -84,7 +84,7 @@ export class UIController {
     this.toggleMenu(true);
     this.menuTab = 'inventory';
     this.renderMenu();
-    this.game.messages.unshift(`${shopName}'s wares are listed in your ledger inventory.`);
+    this.game.messages.unshift(`${shopName}'s shop is open. Buy from the left pane and review your bag on the right.`);
   }
 
   renderCharacterSelector() {
@@ -128,8 +128,23 @@ export class UIController {
       const equipment = inventory.equipmentBag
         .map((e) => `<li><span style="color:${e.rarityColor || '#fff'}">${e.name} ${e.rarity ? `[${e.rarity}]` : ''}</span><br/><small>${Object.entries(e.stats).map(([k, v]) => `+${v} ${k}`).join(', ')} ${e.affixes?.length ? `| ${e.affixes.join(', ')}` : ''}</small><br/><button data-equip="${e.id}" class="ui-btn">Equip to ${member.name}</button></li>`)
         .join('') || '<li>No gear found.</li>';
-      this.elements.menuContent.innerHTML = `${this.renderCharacterSelector()}<h3>Bag</h3><ul>${items}</ul><h3>${member.name} Loadout</h3><p>Damage: ${member.stats.attack} • Armor: ${member.stats.defense}</p><ul>${equipment}</ul>`;
+      const shopStock = this.game.activeShop ? inventory.getShopStock(this.game.activeShop) : [];
+      const shopPane = this.game.activeShop
+        ? `<section class="shop-pane"><h3>Shop Stock</h3><ul>${shopStock
+            .map((entry) => `<li><strong>${entry.name}</strong> - ${entry.price}g<br/><button class="ui-btn" data-buy="${entry.id}">Buy</button></li>`)
+            .join('') || '<li>Sold out.</li>'}</ul></section>`
+        : `<section class="shop-pane"><h3>Shops</h3><p>Talk to Chef Truffle or Smith Bop and press Shop nearby to browse wares.</p></section>`;
+      this.elements.menuContent.innerHTML = `${this.renderCharacterSelector()}<div class="shop-grid">${shopPane}<section class="shop-pane"><h3>Inventory</h3><p>Gold: ${inventory.gold}</p><ul>${items}</ul><h3>${member.name} Loadout</h3><p>Damage: ${member.stats.attack} • Armor: ${member.stats.defense}</p><ul>${equipment}</ul></section></div>`;
       this.bindCharacterSelector();
+      this.elements.menuContent.querySelectorAll('[data-buy]').forEach((btn) => btn.addEventListener('click', () => {
+        const result = inventory.buyFromShop(this.game.activeShop, btn.dataset.buy);
+        if (!result.ok) {
+          if (result.reason === 'gold') this.game.messages.unshift('Not enough gold.');
+          return;
+        }
+        this.game.messages.unshift(`Bought ${result.bought}.`);
+        this.renderMenu();
+      }));
       this.elements.menuContent.querySelectorAll('[data-equip]').forEach((btn) => btn.addEventListener('click', () => {
         inventory.equip(member, btn.dataset.equip);
         this.game.rebuildStats();
@@ -144,8 +159,20 @@ export class UIController {
           return `<li><strong>${talent.name}</strong> ${rank}/${talent.maxRank}<br/><button class="ui-btn" data-talent="${talent.id}">Spend Point</button></li>`;
         })
         .join('');
-      this.elements.menuContent.innerHTML = `${this.renderCharacterSelector()}<h3>${member.name} (${member.className})</h3><p>Talent Points: ${progression.talentPoints}</p><p>Damage: ${member.stats.attack} • Armor: ${member.stats.defense}</p><ul>${talents}</ul>`;
+      const statUpgrades = [
+        { id: 'attack', label: 'Attack +1' },
+        { id: 'defense', label: 'Defense +1' },
+        { id: 'speed', label: 'Speed +2' },
+        { id: 'maxHp', label: 'Max HP +12' },
+        { id: 'maxMana', label: 'Max Mana +10' },
+      ];
+      this.elements.menuContent.innerHTML = `${this.renderCharacterSelector()}<h3>${member.name} (${member.className})</h3><p>Talent Points: ${progression.talentPoints}</p><p>Damage: ${member.stats.attack} • Armor: ${member.stats.defense}</p><h4>Permanent Stat Training</h4><ul>${statUpgrades.map((upgrade) => `<li>${upgrade.label}<br/><button class="ui-btn" data-stat-upgrade="${upgrade.id}">Spend Point</button></li>`).join('')}</ul><h4>Class Talents</h4><ul>${talents}</ul>`;
       this.bindCharacterSelector();
+      this.elements.menuContent.querySelectorAll('[data-stat-upgrade]').forEach((btn) => btn.addEventListener('click', () => {
+        progression.spendAttributePoint(member, btn.dataset.statUpgrade);
+        this.game.rebuildStats();
+        this.renderMenu();
+      }));
       this.elements.menuContent.querySelectorAll('[data-talent]').forEach((btn) => btn.addEventListener('click', () => {
         progression.spendTalent(member, btn.dataset.talent);
         this.game.rebuildStats();
