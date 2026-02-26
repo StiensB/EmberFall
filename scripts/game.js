@@ -220,7 +220,8 @@ class EmberFallGame {
       m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
       if (m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
     });
-  }
+  })}
+  
 
   update(dt) {
     this.elapsed += dt;
@@ -236,6 +237,7 @@ class EmberFallGame {
       this.spawnEnemies();
       return;
     }
+    
 
     this.moveLeader(dt);
     this.party.updateFollow(dt);

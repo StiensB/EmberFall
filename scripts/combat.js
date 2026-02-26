@@ -86,7 +86,6 @@ export class CombatSystem {
     const base = Math.max(1, Math.round(enemy.attack * (0.9 + Math.random() * 0.25)));
     const defense = target.stats.defense;
     const passiveMit = target.className === 'Warrior' ? 0.9 : 1;
-    const damage = Math.max(1, Math.round((base - defense * 0.35) * passiveMit * 1.18));
     const damage = Math.max(1, Math.round((base - defense * 0.35) * passiveMit));
     target.hp -= damage;
     this.spawnParticles(target.x, target.y, '#ff8ea8', 10);
