@@ -105,7 +105,7 @@ export class CombatSystem {
   enemyAttack(enemy, target) {
     enemy.cooldown = enemy.type === 'boss' ? 0.75 : 1.2;
     const base = Math.max(1, Math.round(enemy.attack * (0.9 + Math.random() * 0.25)));
-    const defense = target.stats.defense;
+    const defense = target.stats?.defense ?? target.baseStats?.defense ?? 0;
     const passiveMit = target.className === 'Warrior' ? 0.9 : 1;
     const damage = Math.max(1, Math.round((base - defense * 0.35) * passiveMit * 1.18));
     target.hp = Math.max(0, target.hp - damage);
