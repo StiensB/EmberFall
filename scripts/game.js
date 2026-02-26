@@ -74,6 +74,8 @@ class EmberFallGame {
       const rect = base.getBoundingClientRect();
       knob.style.left = `${rect.width / 2 - knob.offsetWidth / 2}px`;
       knob.style.top = `${rect.height / 2 - knob.offsetHeight / 2}px`;
+      knob.style.left = '28px';
+      knob.style.top = '28px';
       this.input.moveX = 0;
       this.input.moveY = 0;
     };
@@ -216,6 +218,12 @@ class EmberFallGame {
       if (inTown && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
     });
   }
+    this.party.members.forEach((m) => {
+      m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
+      if (m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
+    });
+  })}
+  
 
   update(dt) {
     this.elapsed += dt;
@@ -231,6 +239,7 @@ class EmberFallGame {
       this.spawnEnemies();
       return;
     }
+    
 
     this.moveLeader(dt);
     this.party.updateFollow(dt);
@@ -258,6 +267,13 @@ class EmberFallGame {
     ctx.fillRect(member.x - 8, member.y + 1 + bob, 16, 3);
 
     // Chibi head + hair cap
+    // Chibi body
+    ctx.fillStyle = member.color;
+    ctx.beginPath();
+    ctx.arc(member.x, member.y + 6 + bob, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Chibi head
     ctx.fillStyle = '#ffe8d2';
     ctx.beginPath();
     ctx.arc(member.x, member.y - 10 + bob, 14, 0, Math.PI * 2);
@@ -274,6 +290,10 @@ class EmberFallGame {
     ctx.fillStyle = '#ffb4c7';
     ctx.fillRect(member.x - 8, member.y - 9 + bob, 2, 2);
     ctx.fillRect(member.x + 6, member.y - 9 + bob, 2, 2);
+
+    ctx.fillStyle = '#2b315d';
+    ctx.fillRect(member.x - 5, member.y - 14 + bob, 3, 3);
+    ctx.fillRect(member.x + 2, member.y - 14 + bob, 3, 3);
 
     if (isLead) {
       ctx.strokeStyle = '#ffe067';
@@ -357,6 +377,12 @@ class EmberFallGame {
 
     this.world.zone.npcs.forEach((npc) => {
       this.drawNpc(npc);
+      ctx.fillStyle = npc.color;
+      ctx.beginPath();
+      ctx.arc(npc.x, npc.y, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.fillText(npc.name, npc.x - 28, npc.y - 24);
     });
 
     this.enemies.forEach((e) => {
@@ -403,23 +429,21 @@ class EmberFallGame {
 
   drawOverlay() {
     const ctx = this.ctx;
-    const minimapX = this.canvas.width - 136;
-    const minimapY = this.canvas.height - 248;
-
     ctx.fillStyle = 'rgba(18,20,32,0.6)';
-    ctx.fillRect(minimapX, minimapY, 128, 112);
+    ctx.fillRect(8, this.canvas.height - 122, 128, 112);
     ctx.fillStyle = '#fff';
     ctx.font = '12px sans-serif';
-    ctx.fillText('Minimap', minimapX + 4, minimapY + 16);
+    ctx.fillText('Minimap', 12, this.canvas.height - 106);
     const scaleX = 116 / this.world.zone.width;
     const scaleY = 86 / this.world.zone.height;
-    const mm = ctx.createLinearGradient(minimapX + 4, minimapY + 22, minimapX + 120, minimapY + 108);
+    const mm = ctx.createLinearGradient(12, this.canvas.height - 100, 128, this.canvas.height - 14);
     mm.addColorStop(0, '#a5dcff');
     mm.addColorStop(1, '#79b7ff');
     ctx.fillStyle = mm;
-    ctx.fillRect(minimapX + 4, minimapY + 22, 116, 86);
+    ctx.fillStyle = '#9ad3ff';
+    ctx.fillRect(12, this.canvas.height - 100, 116, 86);
     ctx.fillStyle = '#ffea7b';
-    ctx.fillRect(minimapX + 4 + this.party.active.x * scaleX - 2, minimapY + 22 + this.party.active.y * scaleY - 2, 4, 4);
+    ctx.fillRect(12 + this.party.active.x * scaleX - 2, this.canvas.height - 100 + this.party.active.y * scaleY - 2, 4, 4);
 
     ctx.fillStyle = '#fff';
     ctx.fillText(`${this.world.zone.name}`, 12, 20);
