@@ -250,6 +250,8 @@ class EmberFallGame {
       m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
       if (this.world.zoneId === 'town' && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * (0.8 + this.progression.town.apothecary * 0.25));
     });
+    const nearbyNpc = this.world.nearestNpc(this.party.active.x, this.party.active.y);
+    this.ui.setNpcTalkPrompt(nearbyNpc);
     if (Math.floor(this.elapsed * 2) % 2 === 0) this.ui.renderHud();
   }
 

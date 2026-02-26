@@ -12,6 +12,9 @@ export class UIController {
       dialogueBox: document.getElementById('dialogueBox'),
       dialogueText: document.getElementById('dialogueText'),
       dialogueNext: document.getElementById('dialogueNext'),
+      npcTalkPrompt: document.getElementById('npcTalkPrompt'),
+      npcTalkPromptText: document.getElementById('npcTalkPromptText'),
+      npcTalkBtn: document.getElementById('npcTalkBtn'),
       saveBtn: document.getElementById('saveBtn'),
       closeMenu: document.getElementById('closeMenu'),
       menuBtnTop: document.getElementById('menuBtnTop'),
@@ -25,6 +28,7 @@ export class UIController {
     this.elements.closeMenu.addEventListener('click', () => this.toggleMenu(false));
     this.elements.menuBtnTop?.addEventListener('click', () => this.toggleMenu());
     this.elements.dialogueNext.addEventListener('click', () => this.game.advanceDialogue?.());
+    this.elements.npcTalkBtn?.addEventListener('click', () => this.game.tryTalk?.());
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.menuTab = btn.dataset.tab;
@@ -39,6 +43,20 @@ export class UIController {
     const shouldOpen = open ?? this.elements.menu.classList.contains('hidden');
     this.elements.menu.classList.toggle('hidden', !shouldOpen);
     if (shouldOpen) this.renderMenu();
+  }
+
+
+  setDialogue(text, open = true) {
+    this.elements.dialogueText.textContent = text;
+    this.elements.dialogueBox.classList.toggle('hidden', !open);
+    if (open) this.setNpcTalkPrompt(null);
+  }
+
+  setNpcTalkPrompt(npc = null) {
+    const hasDialogue = !this.elements.dialogueBox.classList.contains('hidden');
+    const canTalk = !!npc && !hasDialogue;
+    this.elements.npcTalkPrompt.classList.toggle('hidden', !canTalk);
+    if (canTalk) this.elements.npcTalkPromptText.textContent = `${npc.name} is nearby`;
   }
 
   renderHud() {

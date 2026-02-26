@@ -112,6 +112,21 @@ body {
 }
 #dialogueText { margin: 0 0 8px; min-height: 36px; }
 
+#npcTalkPrompt {
+  position: absolute;
+  right: 12px;
+  bottom: 254px;
+  width: min(56%, 220px);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+#npcTalkPrompt p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.92;
+}
+
 #joystickBase {
   width: 102px;
   height: 102px;
