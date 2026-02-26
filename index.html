@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>EmberFall: Pocket Dungeon Parade</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="gameCanvas" width="540" height="960" aria-label="EmberFall game canvas"></canvas>
+
+      <section id="hud">
+        <div id="topBar">
+          <div id="partyBars"></div>
+
+          <div id="topActions">
+            <button id="menuBtnTop" class="ui-btn">Menu</button>
+            <button id="saveBtn" class="ui-btn accent">Save</button>
+          </div>
+        </div>
+
+        <div id="questTracker" class="panel"></div>
+
+        <div id="dialogueBox" class="panel hidden">
+          <p id="dialogueText"></p>
+          <button id="dialogueNext" class="ui-btn accent">Next</button>
+        </div>
+
+        <div id="bottomBar">
+          <div id="joystickZone">
+            <div id="joystickBase">
+              <div id="joystickKnob"></div>
+            </div>
+          </div>
+
+          <div id="skillButtons">
+            <button data-skill="attack" class="skill-btn skill-attack">Attack</button>
+            <button data-skill="skill1" class="skill-btn">Skill 1</button>
+            <button data-skill="skill2" class="skill-btn">Skill 2</button>
+            <button data-skill="switch" class="skill-btn">Switch</button>
+            <button data-skill="menu" class="skill-btn">Menu</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="menu" class="panel hidden">
+        <header>
+          <h2>Party Ledger</h2>
+          <button id="closeMenu" class="ui-btn">Close</button>
+        </header>
+        <div id="menuTabs">
+          <button data-tab="inventory" class="tab-btn active">Inventory</button>
+          <button data-tab="characters" class="tab-btn">Characters</button>
+          <button data-tab="quests" class="tab-btn">Quests</button>
+          <button data-tab="map" class="tab-btn">Map</button>
+        </div>
+        <div id="menuContent"></div>
+      </section>
+    </main>
+
+    <script type="module" src="scripts/game.js"></script>
+  </body>
+</html>
