@@ -1,3 +1,4 @@
+import './canvasCompat.js';
 import { Party } from './player.js';
 import { Enemy } from './enemy.js';
 import { World } from './world.js';
