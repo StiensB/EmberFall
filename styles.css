@@ -230,3 +230,24 @@ body {
   .skill-attack { min-height: 86px; }
   #questTracker { max-width: min(64%, 205px); }
 }
+
+
+#gameOverScreen {
+  position: absolute;
+  inset: 20% 12px auto;
+  padding: 18px;
+  text-align: center;
+  z-index: 8;
+}
+
+.character-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ui-btn.active-select {
+  border-color: #ffd48a;
+  background: rgba(255, 191, 95, 0.3);
+}

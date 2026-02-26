@@ -176,6 +176,11 @@ export class QuestSystem {
     return this.unlockedShops.has(shopId);
   }
 
+  isShopAvailable(shopId) {
+    if (this.isShopUnlocked(shopId)) return true;
+    return Object.values(QUESTS).some((quest) => quest.unlockShop === shopId && this.completed.has(quest.id));
+  }
+
   isAreaUnlocked(areaId) {
     return this.unlockedAreas.has(areaId);
   }

@@ -40,6 +40,7 @@ class EmberFallGame {
     this.zoneRespawnAt = 0;
     this.enemyProjectiles = [];
     this.worldPickups = [];
+    this.gameOver = false;
 
     this.installControls();
     this.loadGame();
@@ -186,8 +187,48 @@ class EmberFallGame {
 
   canOpenNearbyShopForNpc(npc) {
     if (!npc || (npc.id !== 'smith' && npc.id !== 'chef')) return false;
-    const starterPairDone = this.questSystem.completed.has('smith_delivery') && this.questSystem.completed.has('chef_collect');
-    return starterPairDone && this.questSystem.isShopUnlocked(npc.id);
+    return this.questSystem.isShopAvailable(npc.id);
+  }
+
+  revivePartyAtLowHealth() {
+    this.party.members.forEach((member) => {
+      const lowHp = Math.max(1, Math.round(member.stats.maxHp * 0.2));
+      member.hp = lowHp;
+      member.mana = Math.max(member.mana, Math.round(member.stats.maxMana * 0.3));
+      member.statuses = [];
+    });
+  }
+
+  checkTownReviveOnReturn(previousZoneId, nextZoneId) {
+    if (previousZoneId === 'town' || nextZoneId !== 'town') return;
+    const deadCount = this.party.members.filter((m) => m.hp <= 0).length;
+    if (!deadCount || deadCount === this.party.members.length) return;
+    this.revivePartyAtLowHealth();
+    this.messages.unshift('Your party limps back to town and is revived at low HP.');
+  }
+
+  triggerGameOver() {
+    if (this.gameOver) return;
+    this.gameOver = true;
+    this.ui.showGameOver();
+    this.messages.unshift('All party members have fallen...');
+  }
+
+  restartFromTown() {
+    this.gameOver = false;
+    this.ui.hideGameOver();
+    this.world.changeZone('town');
+    const townSpawn = { x: 760, y: 1320 };
+    this.party.members.forEach((member, index) => {
+      member.x = townSpawn.x + index * 18;
+      member.y = townSpawn.y + index * 18;
+      member.hp = Math.round(member.stats.maxHp * 0.4);
+      member.mana = Math.round(member.stats.maxMana * 0.5);
+      member.statuses = [];
+    });
+    this.party.activeIndex = 0;
+    this.spawnEnemies();
+    this.messages.unshift('The guild rescues your party. Recover in town before heading out again.');
   }
 
   tryOpenNearbyShop() {
@@ -298,6 +339,7 @@ class EmberFallGame {
         this.messages.unshift(exit.lockedMessage || 'This path is locked.');
       } else {
         if (exit.to === 'dungeon') this.startDungeon('meadow');
+        const previousZone = this.world.zoneId;
         if (!this.world.changeZone(exit.to)) {
           this.messages.unshift('That route is unstable right now. Try another exit.');
           return;
@@ -306,6 +348,7 @@ class EmberFallGame {
           m.x = exit.spawn.x + Math.random() * 20;
           m.y = exit.spawn.y + Math.random() * 20;
         });
+        this.checkTownReviveOnReturn(previousZone, exit.to);
         this.spawnEnemies();
       }
     }
@@ -460,6 +503,7 @@ class EmberFallGame {
   }
 
   update(dt) {
+    if (this.gameOver) return;
     this.elapsed += dt;
     this.moveLeader(dt);
     this.checkWorldPickupCollection();
@@ -491,6 +535,12 @@ class EmberFallGame {
       m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
       if (this.world.zoneId === 'town' && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * (0.8 + this.progression.town.apothecary * 0.25));
     });
+
+    if (this.party.isWiped()) {
+      this.triggerGameOver();
+      return;
+    }
+
     const nearbyNpc = this.world.nearestNpc(this.party.active.x, this.party.active.y);
     this.ui.setNpcTalkPrompt(nearbyNpc, this.canOpenNearbyShopForNpc(nearbyNpc));
     if (Math.floor(this.elapsed * 2) % 2 === 0) this.ui.renderHud();
