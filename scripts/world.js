@@ -1,0 +1,139 @@
+const TILE = 48;
+
+function rect(x, y, w, h) {
+  return { x, y, w, h };
+}
+
+export const WORLD_DATA = {
+  town: {
+    name: 'Sprouton Town',
+    width: 1700,
+    height: 1700,
+    colorA: '#7bd7ff',
+    colorB: '#a8ecb8',
+    blockers: [rect(220, 230, 200, 90), rect(720, 240, 260, 120), rect(1130, 320, 190, 170), rect(510, 830, 370, 140)],
+    exits: [
+      { x: 1470, y: 1450, w: 170, h: 170, to: 'meadow', spawn: { x: 180, y: 180 } },
+      { x: 70, y: 1300, w: 160, h: 160, to: 'cavern', spawn: { x: 1520, y: 250 } },
+    ],
+    npcs: [
+      { id: 'mayor', name: 'Mayor Puffle', x: 900, y: 610, color: '#ffe189', questId: 'main_1', lines: ['Welcome hero-ish people!', 'Please thin out slimes in Sunny Meadow.'] },
+      { id: 'chef', name: 'Chef Truffle', x: 390, y: 640, color: '#ffba8f', questId: 'side_collect', lines: ['I need Slime Gel for jelly stew!', 'Bring me 3 and I\'ll pay.'] },
+      { id: 'smith', name: 'Smith Bop', x: 1210, y: 900, color: '#cab5ff', questId: 'side_delivery', lines: ['Could you deliver this Spark Coil to Mimi?', 'Heroes are basically fantasy couriers.'] },
+    ],
+    enemySpawns: [],
+  },
+  meadow: {
+    name: 'Sunny Meadow Dungeon',
+    width: 2000,
+    height: 1800,
+    colorA: '#8ee8a5',
+    colorB: '#60c9ff',
+    blockers: [rect(540, 420, 270, 220), rect(1080, 650, 230, 280), rect(280, 980, 340, 150), rect(1330, 1230, 310, 130), rect(1480, 420, 220, 240)],
+    exits: [{ x: 10, y: 10, w: 120, h: 120, to: 'town', spawn: { x: 1370, y: 1380 } }],
+    npcs: [{ id: 'scout', name: 'Scout Nib', x: 300, y: 220, color: '#ffd4f0', lines: ['Be careful! Slimes bounce emotionally.'] }],
+    enemySpawns: [
+      { type: 'slime', count: 7, level: 1 },
+      { type: 'bat', count: 4, level: 2 },
+      { type: 'mushroom', count: 4, level: 2 },
+    ],
+  },
+  cavern: {
+    name: 'Giggle Cavern',
+    width: 2100,
+    height: 1800,
+    colorA: '#5f7dff',
+    colorB: '#b888ff',
+    blockers: [rect(380, 400, 240, 260), rect(710, 980, 420, 140), rect(1190, 350, 300, 170), rect(1520, 900, 280, 230)],
+    exits: [{ x: 1880, y: 40, w: 150, h: 150, to: 'town', spawn: { x: 200, y: 1340 } }],
+    npcs: [],
+    enemySpawns: [
+      { type: 'bat', count: 7, level: 3 },
+      { type: 'mushroom', count: 6, level: 3 },
+      { type: 'boss', count: 1, level: 4 },
+    ],
+  },
+};
+
+export class World {
+  constructor() {
+    this.zoneId = 'town';
+    this.camera = { x: 0, y: 0 };
+  }
+
+  get zone() {
+    return WORLD_DATA[this.zoneId];
+  }
+
+  changeZone(id) {
+    this.zoneId = id;
+  }
+
+  resolveCollision(x, y, radius) {
+    const zone = this.zone;
+    x = Math.max(radius, Math.min(zone.width - radius, x));
+    y = Math.max(radius, Math.min(zone.height - radius, y));
+
+    for (const b of zone.blockers) {
+      const nearestX = Math.max(b.x, Math.min(x, b.x + b.w));
+      const nearestY = Math.max(b.y, Math.min(y, b.y + b.h));
+      const dx = x - nearestX;
+      const dy = y - nearestY;
+      if (dx * dx + dy * dy < radius * radius) {
+        if (Math.abs(dx) > Math.abs(dy)) x = nearestX + Math.sign(dx || 1) * radius;
+        else y = nearestY + Math.sign(dy || 1) * radius;
+      }
+    }
+
+    return { x, y };
+  }
+
+  nearestNpc(x, y, range = 80) {
+    let selected = null;
+    let best = range;
+    for (const npc of this.zone.npcs) {
+      const d = Math.hypot(npc.x - x, npc.y - y);
+      if (d < best) {
+        best = d;
+        selected = npc;
+      }
+    }
+    return selected;
+  }
+
+  getExitAt(x, y) {
+    return this.zone.exits.find((e) => x > e.x && x < e.x + e.w && y > e.y && y < e.y + e.h) || null;
+  }
+
+  draw(ctx) {
+    const zone = this.zone;
+    const g = ctx.createLinearGradient(0, 0, zone.width, zone.height);
+    g.addColorStop(0, zone.colorA);
+    g.addColorStop(1, zone.colorB);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, zone.width, zone.height);
+
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#ffffff';
+    for (let y = 0; y < zone.height; y += TILE) {
+      for (let x = 0; x < zone.width; x += TILE) {
+        if ((x / TILE + y / TILE) % 2 === 0) ctx.fillRect(x, y, TILE, TILE);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#4e6485';
+    zone.blockers.forEach((b) => {
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = '#2d3f58';
+      ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, b.h - 16);
+      ctx.fillStyle = '#4e6485';
+    });
+
+    zone.exits.forEach((e) => {
+      ctx.strokeStyle = '#ffe77f';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(e.x, e.y, e.w, e.h);
+    });
+  }
+}
