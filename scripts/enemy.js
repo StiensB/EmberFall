@@ -53,12 +53,19 @@ export class Enemy {
   }
 
   updateStatuses(dt) {
+    const slowEffects = [];
     this.statuses = this.statuses.filter((status) => {
       status.duration -= dt;
       if (status.id === 'burn') this.hp -= dt * (status.dps || 5);
-      if (status.id === 'slow') this.speed *= 0.995;
+      if (status.id === 'bleed') this.hp -= dt * (status.dps || 4);
+      if (status.id === 'slow') slowEffects.push(status.strength || 0.2);
       return status.duration > 0;
     });
+
+    const strongestSlow = slowEffects.length ? Math.max(...slowEffects) : 0;
+    const haste = this.modifiers.some((m) => m.id === 'haste') ? 1.16 : 1;
+    const baseSpeed = (ENEMY_TYPES[this.type]?.speed || ENEMY_TYPES.slime.speed) * (1 + (this.level - 1) * 0.08);
+    this.speed = baseSpeed * haste * (1 - strongestSlow);
   }
 
   updateAI(dt, target, world) {
