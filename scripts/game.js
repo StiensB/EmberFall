@@ -118,6 +118,8 @@ class EmberFallGame {
   startDungeon(regionId = 'meadow') {
     const run = this.dungeon.createRun(regionId, this.progression.dungeonRank);
     this.world.setDynamicDungeon(run.zone);
+  }
+
   tryTalk() {
     const lead = this.party.active;
     const npc = this.world.nearestNpc(lead.x, lead.y);
@@ -172,16 +174,6 @@ class EmberFallGame {
     }
     const next = this.dialogueQueue.shift();
     this.ui.setDialogue(next, true);
-  }
-
-  addXp(value) {
-    this.xp += value;
-    while (this.xp >= this.levelXp) {
-      this.xp -= this.levelXp;
-      this.levelXp = Math.round(this.levelXp * 1.2);
-      this.party.members.forEach((m) => m.gainLevel());
-      this.messages.unshift('Party leveled up! Stats boosted.');
-    }
   }
 
   spawnEnemies() {
@@ -505,18 +497,14 @@ class EmberFallGame {
   draw() {
     const { sceneCtx: ctx, scale } = this.renderer.beginFrame();
     const lead = this.party.active;
-    const { width, height } = this.canvas;
-    this.world.camera.x = Math.max(0, Math.min(this.world.zone.width - width, lead.x - width / 2));
-    this.world.camera.y = Math.max(0, Math.min(this.world.zone.height - height, lead.y - height / 2));
-
-    const width = this.renderer.sceneCanvas.width;
-    const height = this.renderer.sceneCanvas.height;
+    const sceneWidth = this.renderer.sceneCanvas.width;
+    const sceneHeight = this.renderer.sceneCanvas.height;
 
     const targetZoom = this.combat.comboTimer > 0.01 ? 1.06 : 1;
     this.renderZoom += (targetZoom - this.renderZoom) * 0.12;
 
-    const targetCamX = Math.max(0, Math.min(this.world.zone.width - width / scale, lead.x - width / (2 * scale)));
-    const targetCamY = Math.max(0, Math.min(this.world.zone.height - height / scale, lead.y - height / (2 * scale)));
+    const targetCamX = Math.max(0, Math.min(this.world.zone.width - sceneWidth / scale, lead.x - sceneWidth / (2 * scale)));
+    const targetCamY = Math.max(0, Math.min(this.world.zone.height - sceneHeight / scale, lead.y - sceneHeight / (2 * scale)));
     this.renderCamera.x += (targetCamX - this.renderCamera.x) * 0.12;
     this.renderCamera.y += (targetCamY - this.renderCamera.y) * 0.12;
     this.world.camera.x = this.renderCamera.x;
@@ -535,10 +523,10 @@ class EmberFallGame {
     this.enemies.forEach((e) => {
       ctx.fillStyle = 'rgba(10, 12, 22, 0.35)';
       ctx.beginPath();
-      ctx.arc(npc.x, npc.y, 16, 0, Math.PI * 2);
+      ctx.arc(e.x, e.y, 16, 0, Math.PI * 2);
       ctx.fill();
-    });
       this.renderer.drawNormalDisc(e.x * scale, e.y * scale, (e.radius + 8) * scale, 0.95);
+    });
 
     this.enemies.forEach((e) => {
       ctx.fillStyle = e.color;
@@ -560,6 +548,8 @@ class EmberFallGame {
         ctx.strokeStyle = '#ffe067';
         ctx.strokeRect(m.x - 16, m.y - 16, 32, 32);
       }
+    });
+
     this.party.members.forEach((m, idx) => this.drawCharacter(m, idx === this.party.activeIndex));
     this.party.members.forEach((m) => this.renderer.drawNormalDisc(m.x * scale, m.y * scale, 26 * scale, 1));
 
