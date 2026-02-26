@@ -1,13 +1,39 @@
 const QUESTS = {
-  main_1: {
-    id: 'main_1',
-    title: 'Slime Situation',
-    description: 'Defeat 6 slimes in Sunny Meadow.',
+  chef_collect: {
+    id: 'chef_collect',
+    title: 'Chef Special',
+    description: 'Collect 3 Slime Gel and return to Chef Truffle.',
+    type: 'collect',
+    target: 'Slime Gel',
+    count: 3,
+    turnInNpc: 'chef',
+    rewards: { xp: 45, gold: 30 },
+    nextQuest: 'smith_delivery',
+    unlockShop: 'chef',
+  },
+  smith_delivery: {
+    id: 'smith_delivery',
+    title: 'Spark Delivery',
+    description: 'Deliver Spark Coil to Mimi in your party menu.',
+    type: 'deliver',
+    target: 'Spark Coil',
+    count: 1,
+    turnInNpc: 'smith',
+    rewards: { xp: 30, gold: 20 },
+    nextQuest: 'mayor_clearance',
+    unlockShop: 'smith',
+  },
+  mayor_clearance: {
+    id: 'mayor_clearance',
+    title: 'Mayor\'s Clearance',
+    description: 'Defeat 6 slimes in Sunny Meadow, then report to Mayor Puffle.',
     type: 'kill',
     target: 'slime',
     count: 6,
-    rewards: { xp: 80, gold: 40, items: [{ name: 'Potion', count: 2 }] },
+    turnInNpc: 'mayor',
+    rewards: { xp: 80, gold: 45, items: [{ name: 'Potion', count: 2 }] },
     nextQuest: 'main_2',
+    unlockArea: 'cavern',
   },
   main_2: {
     id: 'main_2',
@@ -18,40 +44,22 @@ const QUESTS = {
     count: 1,
     rewards: { xp: 180, gold: 120, items: [{ name: 'Elixir', count: 1 }] },
   },
-  side_collect: {
-    id: 'side_collect',
-    title: 'Chef Special',
-    description: 'Collect 3 Slime Gel and return to Chef Truffle.',
-    type: 'collect',
-    target: 'Slime Gel',
-    count: 3,
-    turnInNpc: 'chef',
-    rewards: { xp: 45, gold: 30 },
-  },
-  side_delivery: {
-    id: 'side_delivery',
-    title: 'Spark Delivery',
-    description: 'Deliver Spark Coil to Mimi in your party menu.',
-    type: 'deliver',
-    target: 'Spark Coil',
-    count: 1,
-    rewards: { xp: 30, gold: 20 },
-  },
 };
 
 export class QuestSystem {
   constructor() {
     this.active = new Map();
     this.completed = new Set();
-    this.addQuest('main_1');
-    this.addQuest('side_collect');
-    this.addQuest('side_delivery');
+    this.unlockedShops = new Set();
+    this.unlockedAreas = new Set(['town', 'meadow']);
+    this.addQuest('chef_collect');
     this.deliveryDone = false;
   }
 
   addQuest(id) {
     if (!QUESTS[id] || this.active.has(id) || this.completed.has(id)) return;
-    this.active.set(id, { id, progress: 0, turnedIn: false });
+    const progress = id === 'smith_delivery' && this.deliveryDone ? 1 : 0;
+    this.active.set(id, { id, progress, turnedIn: false });
   }
 
   onEnemyDefeated(type) {
@@ -74,7 +82,7 @@ export class QuestSystem {
 
   completeDelivery() {
     this.deliveryDone = true;
-    const q = this.active.get('side_delivery');
+    const q = this.active.get('smith_delivery');
     if (q) q.progress = 1;
   }
 
@@ -96,8 +104,18 @@ export class QuestSystem {
     inventory.gold += q.rewards.gold || 0;
     (q.rewards.items || []).forEach((i) => inventory.addItem(i.name, i.count));
     grantXp(q.rewards.xp || 0);
+    if (q.unlockShop) this.unlockedShops.add(q.unlockShop);
+    if (q.unlockArea) this.unlockedAreas.add(q.unlockArea);
     if (q.nextQuest) this.addQuest(q.nextQuest);
     return true;
+  }
+
+  isShopUnlocked(shopId) {
+    return this.unlockedShops.has(shopId);
+  }
+
+  isAreaUnlocked(areaId) {
+    return this.unlockedAreas.has(areaId);
   }
 
   trackerText() {
@@ -113,6 +131,8 @@ export class QuestSystem {
     return {
       active: [...this.active.entries()],
       completed: [...this.completed],
+      unlockedShops: [...this.unlockedShops],
+      unlockedAreas: [...this.unlockedAreas],
       deliveryDone: this.deliveryDone,
     };
   }
@@ -121,6 +141,8 @@ export class QuestSystem {
     if (!data) return;
     this.active = new Map(data.active || []);
     this.completed = new Set(data.completed || []);
+    this.unlockedShops = new Set(data.unlockedShops || []);
+    this.unlockedAreas = new Set(data.unlockedAreas || ['town', 'meadow']);
     this.deliveryDone = Boolean(data.deliveryDone);
   }
 
