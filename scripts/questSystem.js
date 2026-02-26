@@ -33,6 +33,7 @@ const QUESTS = {
     rewards: { xp: 30, gold: 20 },
     nextQuests: ['mayor_clearance', 'smith_hunt_2'],
     unlockShop: 'smith',
+    unlockArea: 'west',
   },
   smith_hunt_2: {
     id: 'smith_hunt_2',
@@ -47,14 +48,24 @@ const QUESTS = {
   mayor_clearance: {
     id: 'mayor_clearance',
     title: 'Mayor\'s Clearance',
-    description: 'Defeat 6 slimes in Sunny Meadow, then report to Mayor Puffle.',
+    description: 'Clear the West Wilds by defeating 3 Puff Zombies, 3 Rune Sentinels, and 3 Pocket Drakes, then report to Mayor Puffle.',
     type: 'kill',
-    target: 'slime',
-    count: 6,
+    target: 'puff_zombie',
+    count: 9,
     turnInNpc: 'mayor',
     rewards: { xp: 80, gold: 45, items: [{ name: 'Potion', count: 2 }] },
-    nextQuests: ['main_2'],
-    unlockArea: 'caverns',
+    nextQuests: ['mayor_chef_slime'],
+    unlockArea: 'south_meadow',
+  },
+  mayor_chef_slime: {
+    id: 'mayor_chef_slime',
+    title: 'Kitchen Calamity',
+    description: 'Head south of Sunny Meadow and defeat The Chef Slime.',
+    type: 'kill',
+    target: 'chef_slime',
+    count: 1,
+    turnInNpc: 'mayor',
+    rewards: { xp: 140, gold: 90, items: [{ name: 'Elixir', count: 1 }] },
   },
   main_2: {
     id: 'main_2',
@@ -91,6 +102,14 @@ export class QuestSystem {
         if (Object.hasOwn(tracked, type)) tracked[type] = Math.min(3, tracked[type] + 1);
         state.tracked = tracked;
         state.progress = tracked.rockling + tracked.wobble_mage + tracked.silkweaver;
+        return;
+      }
+
+      if (id === 'mayor_clearance') {
+        const tracked = state.tracked || { puff_zombie: 0, rune_sentinel: 0, pocket_drake: 0 };
+        if (Object.hasOwn(tracked, type)) tracked[type] = Math.min(3, tracked[type] + 1);
+        state.tracked = tracked;
+        state.progress = tracked.puff_zombie + tracked.rune_sentinel + tracked.pocket_drake;
         return;
       }
 
@@ -168,6 +187,9 @@ export class QuestSystem {
       if (id === 'smith_hunt_2') {
         const tracked = state.tracked || { rockling: 0, wobble_mage: 0, silkweaver: 0 };
         lines.push(`${q.title}: Rocklings ${tracked.rockling}/3 • Wobble Mages ${tracked.wobble_mage}/3 • Silkweavers ${tracked.silkweaver}/3`);
+      } else if (id === 'mayor_clearance') {
+        const tracked = state.tracked || { puff_zombie: 0, rune_sentinel: 0, pocket_drake: 0 };
+        lines.push(`${q.title}: Puff Zombies ${tracked.puff_zombie}/3 • Rune Sentinels ${tracked.rune_sentinel}/3 • Pocket Drakes ${tracked.pocket_drake}/3`);
       } else {
         lines.push(`${q.title}: ${state.progress}/${q.count}`);
       }
