@@ -1,10 +1,14 @@
 const ENEMY_TYPES = {
-  slime: { hp: 56, attack: 9, speed: 42, color: '#7df2be', xp: 14, gold: [4, 8], drop: 'Slime Gel' },
-  bat: { hp: 38, attack: 12, speed: 70, color: '#bba5ff', xp: 12, gold: [3, 7], drop: 'Bat Wing' },
-  mushroom: { hp: 72, attack: 11, speed: 35, color: '#ffb788', xp: 16, gold: [6, 10], drop: 'Mush Cap' },
-  wraith: { hp: 80, attack: 16, speed: 58, color: '#90a2ff', xp: 22, gold: [8, 14], drop: 'Echo Dust' },
-  sentinel: { hp: 110, attack: 14, speed: 34, color: '#90d4d0', xp: 24, gold: [9, 16], drop: 'Relic Shard' },
-  boss: { hp: 380, attack: 24, speed: 50, color: '#ff6fa9', xp: 120, gold: [40, 70], drop: 'Crown Core' },
+  slime: { hp: 56, attack: 9, defense: 2, speed: 42, color: '#7df2be', xp: 14, gold: [4, 8], drop: 'Slime Gel' },
+  bat: { hp: 38, attack: 12, defense: 1, speed: 70, color: '#bba5ff', xp: 12, gold: [3, 7], drop: 'Bat Wing' },
+  mushroom: { hp: 72, attack: 11, defense: 4, speed: 35, color: '#ffb788', xp: 16, gold: [6, 10], drop: 'Mush Cap' },
+  wraith: { hp: 80, attack: 16, defense: 4, speed: 58, color: '#90a2ff', xp: 22, gold: [8, 14], drop: 'Echo Dust' },
+  sentinel: { hp: 110, attack: 14, defense: 11, speed: 34, color: '#90d4d0', xp: 24, gold: [9, 16], drop: 'Relic Shard' },
+  rockling: { hp: 132, attack: 15, defense: 24, speed: 30, color: '#8da0b7', xp: 30, gold: [11, 18], drop: 'Stone Core' },
+  wobble_mage: { hp: 74, attack: 13, defense: 6, speed: 45, color: '#8ecbff', xp: 28, gold: [10, 16], drop: 'Arcane Pebble' },
+  silkweaver: { hp: 92, attack: 14, defense: 8, speed: 49, color: '#d5ddff', xp: 32, gold: [11, 19], drop: 'Silk Bundle' },
+  spiderling: { hp: 34, attack: 9, defense: 2, speed: 72, color: '#adb8d8', xp: 10, gold: [2, 5], drop: 'Spider Silk' },
+  boss: { hp: 380, attack: 24, defense: 12, speed: 50, color: '#ff6fa9', xp: 120, gold: [40, 70], drop: 'Crown Core' },
 };
 
 export class Enemy {
@@ -14,23 +18,28 @@ export class Enemy {
     this.type = type;
     this.x = x;
     this.y = y;
-    this.radius = type === 'boss' ? 28 : 14;
+    this.radius = type === 'boss' ? 28 : type === 'rockling' ? 16 : type === 'spiderling' ? 10 : 14;
     this.maxHp = Math.round(template.hp * scale);
     this.hp = this.maxHp;
     this.attack = Math.round(template.attack * scale);
+    this.baseDefense = Math.round(template.defense * scale);
+    this.defense = this.baseDefense;
     this.speed = template.speed * scale;
     this.color = template.color;
     this.xp = Math.round(template.xp * scale);
     this.goldRange = template.gold;
     this.drop = template.drop;
     this.cooldown = 0;
-    this.alertRange = 220;
-    this.attackRange = this.radius + 20;
+    this.specialCooldown = 0.6 + Math.random() * 1.4;
+    this.alertRange = type === 'wobble_mage' ? 260 : 220;
+    this.attackRange = this.radius + (type === 'wobble_mage' ? 180 : 20);
     this.wander = { angle: Math.random() * Math.PI * 2, timer: 1 + Math.random() * 3 };
     this.level = level;
     this.statuses = [];
     this.modifiers = modifiers;
     this.phase = 1;
+    this.exposedTimer = 0;
+    this.intent = null;
     this.applyModifiers();
   }
 
@@ -62,6 +71,11 @@ export class Enemy {
       return status.duration > 0;
     });
 
+    this.exposedTimer = Math.max(0, this.exposedTimer - dt);
+    if (this.type === 'rockling') {
+      this.defense = this.exposedTimer > 0 ? Math.round(this.baseDefense * 0.5) : this.baseDefense;
+    }
+
     const strongestSlow = slowEffects.length ? Math.max(...slowEffects) : 0;
     const haste = this.modifiers.some((m) => m.id === 'haste') ? 1.16 : 1;
     const baseSpeed = (ENEMY_TYPES[this.type]?.speed || ENEMY_TYPES.slime.speed) * (1 + (this.level - 1) * 0.08);
@@ -70,7 +84,9 @@ export class Enemy {
 
   updateAI(dt, target, world) {
     this.cooldown = Math.max(0, this.cooldown - dt);
+    this.specialCooldown = Math.max(0, this.specialCooldown - dt);
     this.updateStatuses(dt);
+    this.intent = null;
 
     if (this.type === 'boss' && this.hp / this.maxHp < 0.5 && this.phase === 1) {
       this.phase = 2;
@@ -82,11 +98,24 @@ export class Enemy {
     const dy = target.y - this.y;
     const dist = Math.hypot(dx, dy);
 
+    if (this.type === 'wobble_mage' && dist < 250 && this.specialCooldown <= 0) {
+      this.intent = Math.random() < 0.35 ? { type: 'ally_shield' } : { type: 'projectile' };
+      this.specialCooldown = 2.8 + Math.random() * 1.4;
+    }
+
+    if (this.type === 'silkweaver' && dist < 220 && this.specialCooldown <= 0) {
+      this.intent = Math.random() < 0.45 ? { type: 'web_trap' } : { type: 'summon_spiderling' };
+      this.specialCooldown = 3.1 + Math.random() * 1.2;
+    }
+
+    const keepsDistance = this.type === 'wobble_mage' || this.type === 'silkweaver';
     if (dist < this.alertRange) {
       const nx = dx / (dist || 1);
       const ny = dy / (dist || 1);
       const step = this.speed * dt;
-      const next = world.resolveCollision(this.x + nx * step, this.y + ny * step, this.radius);
+      const retreat = keepsDistance && dist < 120;
+      const moveScale = retreat ? -0.75 : 1;
+      const next = world.resolveCollision(this.x + nx * step * moveScale, this.y + ny * step * moveScale, this.radius);
       this.x = next.x;
       this.y = next.y;
     } else {

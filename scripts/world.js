@@ -17,11 +17,12 @@ export const WORLD_DATA = {
       { x: 70, y: 1300, w: 160, h: 160, to: 'caverns', spawn: { x: 1520, y: 250 }, requiresArea: 'caverns', lockedMessage: 'The cavern gate is sealed. Mayor Puffle must approve access first.' },
       { x: 1320, y: 80, w: 180, h: 120, to: 'ruins', spawn: { x: 260, y: 1380 }, requiresArea: 'ruins', lockedMessage: 'The ruins bridge is under repair. Upgrade the guild hall.' },
       { x: 760, y: 20, w: 180, h: 120, to: 'dungeon', spawn: { x: 180, y: 180 } },
+      { x: 1520, y: 80, w: 150, h: 120, to: 'north', spawn: { x: 170, y: 1480 }, requiresArea: 'north', lockedMessage: 'The north pass is sealed. Help Chef Truffle first to get travel clearance.' },
     ],
     npcs: [
       { id: 'mayor', name: 'Mayor Puffle', x: 900, y: 610, color: '#ffe189', questId: 'mayor_clearance', lines: ['Keep the town safe, hero-ish people!', 'Prove yourself and I\'ll unseal the cavern gate.'] },
       { id: 'chef', name: 'Chef Truffle', x: 390, y: 640, color: '#ffba8f', questId: 'chef_collect', lines: ['I need Slime Gel for jelly stew!', 'Bring me 3 and I\'ll open my kitchen shop.'] },
-      { id: 'smith', name: 'Smith Bop', x: 1210, y: 900, color: '#cab5ff', questId: 'smith_delivery', lines: ['Could you deliver this Spark Coil to Mimi?', 'Do that and I\'ll open my forge stock.'] },
+      { id: 'smith', name: 'Smith Bop', x: 1210, y: 900, color: '#cab5ff', questId: 'smith_delivery', lines: ['Head north and recover my Frost Coil from the snowfield.', 'Bring it back and I\'ll open my forge stock.'] },
     ],
     enemySpawns: [],
   },
@@ -46,6 +47,18 @@ export const WORLD_DATA = {
     exits: [{ x: 1880, y: 40, w: 150, h: 150, to: 'town', spawn: { x: 200, y: 1340 } }],
     npcs: [],
     enemySpawns: [{ type: 'bat', count: 7, level: 3 }, { type: 'mushroom', count: 6, level: 3 }, { type: 'wraith', count: 4, level: 4 }, { type: 'boss', count: 1, level: 4 }],
+  },
+
+  north: {
+    name: 'Frostcrag North',
+    width: 2200,
+    height: 1800,
+    colorA: '#9ec4ff',
+    colorB: '#d7efff',
+    blockers: [rect(360, 320, 320, 190), rect(780, 780, 260, 280), rect(1280, 360, 380, 180), rect(1590, 940, 310, 250), rect(420, 1230, 400, 160)],
+    exits: [{ x: 20, y: 1650, w: 180, h: 120, to: 'town', spawn: { x: 1500, y: 220 } }],
+    npcs: [],
+    enemySpawns: [{ type: 'rockling', count: 3, level: 4 }, { type: 'wobble_mage', count: 3, level: 4 }, { type: 'silkweaver', count: 3, level: 5 }],
   },
   ruins: {
     name: 'Whispering Ruins',

@@ -10,6 +10,7 @@ const QUESTS = {
     rewards: { xp: 45, gold: 30 },
     nextQuests: ['smith_delivery', 'chef_collect_2'],
     unlockShop: 'chef',
+    unlockArea: 'north',
   },
   chef_collect_2: {
     id: 'chef_collect_2',
@@ -23,10 +24,10 @@ const QUESTS = {
   },
   smith_delivery: {
     id: 'smith_delivery',
-    title: 'Spark Delivery',
-    description: 'Deliver Spark Coil to Mimi in your party menu.',
-    type: 'deliver',
-    target: 'Spark Coil',
+    title: 'Northern Pickup',
+    description: 'Travel to Frostcrag North, pick up the Frost Coil, and return to Smith Bop.',
+    type: 'collect',
+    target: 'Frost Coil',
     count: 1,
     turnInNpc: 'smith',
     rewards: { xp: 30, gold: 20 },
@@ -35,11 +36,11 @@ const QUESTS = {
   },
   smith_hunt_2: {
     id: 'smith_hunt_2',
-    title: 'Forge Recalibration',
-    description: 'Defeat 8 slimes to gather core sparks for Smith Bop.',
+    title: 'Northern Forge Trial',
+    description: 'Travel to Frostcrag North and defeat 3 Rocklings, 3 Wobble Mages, and 3 Silkweavers.',
     type: 'kill',
-    target: 'slime',
-    count: 8,
+    target: 'rockling',
+    count: 9,
     turnInNpc: 'smith',
     rewards: { xp: 70, gold: 50, items: [{ name: 'Hi-Potion', count: 1 }] },
   },
@@ -73,19 +74,27 @@ export class QuestSystem {
     this.unlockedShops = new Set();
     this.unlockedAreas = new Set(['town', 'meadow']);
     this.addQuest('chef_collect');
-    this.deliveryDone = false;
   }
 
   addQuest(id) {
     if (!QUESTS[id] || this.active.has(id) || this.completed.has(id)) return;
-    const progress = id === 'smith_delivery' && this.deliveryDone ? 1 : 0;
-    this.active.set(id, { id, progress, turnedIn: false });
+    this.active.set(id, { id, progress: 0, turnedIn: false });
   }
 
   onEnemyDefeated(type) {
     this.active.forEach((state, id) => {
       const q = QUESTS[id];
-      if (q.type === 'kill' && q.target === type) {
+      if (q.type !== 'kill') return;
+
+      if (id === 'smith_hunt_2') {
+        const tracked = state.tracked || { rockling: 0, wobble_mage: 0, silkweaver: 0 };
+        if (Object.hasOwn(tracked, type)) tracked[type] = Math.min(3, tracked[type] + 1);
+        state.tracked = tracked;
+        state.progress = tracked.rockling + tracked.wobble_mage + tracked.silkweaver;
+        return;
+      }
+
+      if (q.target === type) {
         state.progress = Math.min(q.count, state.progress + 1);
       }
     });
@@ -98,12 +107,6 @@ export class QuestSystem {
         state.progress = Math.min(q.count, state.progress + 1);
       }
     });
-  }
-
-  completeDelivery() {
-    this.deliveryDone = true;
-    const q = this.active.get('smith_delivery');
-    if (q) q.progress = 1;
   }
 
   canTurnIn(questId, npcId = null) {
@@ -162,7 +165,12 @@ export class QuestSystem {
     const lines = [];
     this.active.forEach((state, id) => {
       const q = QUESTS[id];
-      lines.push(`${q.title}: ${state.progress}/${q.count}`);
+      if (id === 'smith_hunt_2') {
+        const tracked = state.tracked || { rockling: 0, wobble_mage: 0, silkweaver: 0 };
+        lines.push(`${q.title}: Rocklings ${tracked.rockling}/3 • Wobble Mages ${tracked.wobble_mage}/3 • Silkweavers ${tracked.silkweaver}/3`);
+      } else {
+        lines.push(`${q.title}: ${state.progress}/${q.count}`);
+      }
     });
     return lines;
   }
@@ -173,7 +181,6 @@ export class QuestSystem {
       completed: [...this.completed],
       unlockedShops: [...this.unlockedShops],
       unlockedAreas: [...this.unlockedAreas],
-      deliveryDone: this.deliveryDone,
     };
   }
 
@@ -183,7 +190,6 @@ export class QuestSystem {
     this.completed = new Set(data.completed || []);
     this.unlockedShops = new Set(data.unlockedShops || []);
     this.unlockedAreas = new Set(data.unlockedAreas || ['town', 'meadow']);
-    this.deliveryDone = Boolean(data.deliveryDone);
   }
 
   static get QUESTS() {
