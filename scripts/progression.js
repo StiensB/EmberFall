@@ -23,6 +23,7 @@ export class ProgressionSystem {
   constructor() {
     this.talentPoints = 0;
     this.talents = {};
+    this.statPoints = {};
     this.town = { forge: 0, apothecary: 0, guildhall: 0 };
     this.dungeonRank = 1;
   }
@@ -53,6 +54,23 @@ export class ProgressionSystem {
         member.stats[stat] = (member.stats[stat] || 0) + value * rank;
       });
     });
+
+    const permanentStats = this.statPoints[member.name] || {};
+    member.stats.attack += permanentStats.attack || 0;
+    member.stats.defense += permanentStats.defense || 0;
+    member.stats.speed += (permanentStats.speed || 0) * 2;
+    member.stats.maxHp += (permanentStats.maxHp || 0) * 12;
+    member.stats.maxMana += (permanentStats.maxMana || 0) * 10;
+  }
+
+  spendAttributePoint(member, stat) {
+    if (this.talentPoints <= 0) return false;
+    const allowed = ['attack', 'defense', 'speed', 'maxHp', 'maxMana'];
+    if (!allowed.includes(stat)) return false;
+    const ledger = (this.statPoints[member.name] ||= {});
+    ledger[stat] = (ledger[stat] || 0) + 1;
+    this.talentPoints -= 1;
+    return true;
   }
 
   getUpgradeCost(upgradeId) {
@@ -79,6 +97,7 @@ export class ProgressionSystem {
     return {
       talentPoints: this.talentPoints,
       talents: this.talents,
+      statPoints: this.statPoints,
       town: this.town,
       dungeonRank: this.dungeonRank,
     };
@@ -88,6 +107,7 @@ export class ProgressionSystem {
     if (!data) return;
     this.talentPoints = data.talentPoints || 0;
     this.talents = data.talents || {};
+    this.statPoints = data.statPoints || {};
     this.town = { ...this.town, ...(data.town || {}) };
     this.dungeonRank = data.dungeonRank || 1;
   }
