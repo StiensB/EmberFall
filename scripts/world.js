@@ -116,6 +116,25 @@ export class World {
     return this.zone.exits.find((e) => x > e.x && x < e.x + e.w && y > e.y && y < e.y + e.h) || null;
   }
 
+  drawParallax(ctx, zone) {
+    const px = this.camera.x;
+    const py = this.camera.y;
+    for (let i = 0; i < 3; i += 1) {
+      const speed = 0.14 + i * 0.09;
+      const alpha = 0.1 + i * 0.07;
+      ctx.fillStyle = i === 2 ? 'rgba(255,255,255,0.15)' : 'rgba(224,241,255,0.1)';
+      for (let k = 0; k < 11; k += 1) {
+        const x = ((k * 260 + (px * speed * (i + 1))) % (zone.width + 460)) - 220;
+        const y = ((k * 190 + (py * speed * (i + 0.5))) % (zone.height + 320)) - 160;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 120 - i * 20, 45 - i * 8, i * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   draw(ctx) {
     const zone = this.zone;
     const g = ctx.createLinearGradient(0, 0, zone.width, zone.height);
@@ -123,6 +142,7 @@ export class World {
     g.addColorStop(1, zone.colorB);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, zone.width, zone.height);
+    this.drawParallax(ctx, zone);
 
     ctx.globalAlpha = 0.1;
     ctx.fillStyle = '#ffffff';
