@@ -114,6 +114,7 @@ export class World {
     ctx.fillRect(0, 0, zone.width, zone.height);
 
     ctx.globalAlpha = 0.1;
+    ctx.globalAlpha = 0.16;
     ctx.fillStyle = '#ffffff';
     for (let y = 0; y < zone.height; y += TILE) {
       for (let x = 0; x < zone.width; x += TILE) {
