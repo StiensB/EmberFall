@@ -9,6 +9,10 @@ const ENEMY_TYPES = {
   silkweaver: { hp: 92, attack: 14, defense: 8, speed: 49, color: '#d5ddff', xp: 32, gold: [11, 19], drop: 'Silk Bundle' },
   spiderling: { hp: 34, attack: 9, defense: 2, speed: 72, color: '#adb8d8', xp: 10, gold: [2, 5], drop: 'Spider Silk' },
   boss: { hp: 380, attack: 24, defense: 12, speed: 50, color: '#ff6fa9', xp: 120, gold: [40, 70], drop: 'Crown Core' },
+  puff_zombie: { hp: 88, attack: 16, defense: 5, speed: 39, color: '#b7f598', xp: 34, gold: [12, 20], drop: 'Puff Core' },
+  rune_sentinel: { hp: 170, attack: 17, defense: 16, speed: 31, color: '#9ec7d0', xp: 40, gold: [14, 24], drop: 'Rune Shard' },
+  pocket_drake: { hp: 120, attack: 20, defense: 9, speed: 56, color: '#ffb592', xp: 44, gold: [15, 25], drop: 'Drake Scale' },
+  chef_slime: { hp: 520, attack: 26, defense: 13, speed: 42, color: '#ff9fc2', xp: 180, gold: [60, 90], drop: 'Chef Crown' },
 };
 
 export class Enemy {
@@ -18,7 +22,7 @@ export class Enemy {
     this.type = type;
     this.x = x;
     this.y = y;
-    this.radius = type === 'boss' ? 28 : type === 'rockling' ? 16 : type === 'spiderling' ? 10 : 14;
+    this.radius = type === 'boss' || type === 'chef_slime' ? 28 : type === 'rockling' || type === 'rune_sentinel' ? 16 : type === 'spiderling' ? 10 : 14;
     this.maxHp = Math.round(template.hp * scale);
     this.hp = this.maxHp;
     this.attack = Math.round(template.attack * scale);
@@ -31,8 +35,8 @@ export class Enemy {
     this.drop = template.drop;
     this.cooldown = 0;
     this.specialCooldown = 0.6 + Math.random() * 1.4;
-    this.alertRange = type === 'wobble_mage' ? 260 : 220;
-    this.attackRange = this.radius + (type === 'wobble_mage' ? 180 : 20);
+    this.alertRange = type === 'wobble_mage' ? 260 : type === 'pocket_drake' ? 250 : type === 'chef_slime' ? 280 : 220;
+    this.attackRange = this.radius + (type === 'wobble_mage' ? 180 : type === 'pocket_drake' || type === 'chef_slime' ? 150 : 20);
     this.wander = { angle: Math.random() * Math.PI * 2, timer: 1 + Math.random() * 3 };
     this.level = level;
     this.statuses = [];
@@ -40,6 +44,7 @@ export class Enemy {
     this.phase = 1;
     this.exposedTimer = 0;
     this.intent = null;
+    this.facing = { x: 1, y: 0 };
     this.applyModifiers();
   }
 
@@ -108,7 +113,17 @@ export class Enemy {
       this.specialCooldown = 3.1 + Math.random() * 1.2;
     }
 
-    const keepsDistance = this.type === 'wobble_mage' || this.type === 'silkweaver';
+    if (this.type === 'pocket_drake' && dist < 220 && this.specialCooldown <= 0) {
+      this.intent = Math.random() < 0.55 ? { type: 'fire_cone' } : { type: 'wing_gust' };
+      this.specialCooldown = 2.4 + Math.random() * 1.1;
+    }
+
+    if (this.type === 'chef_slime' && dist < 260 && this.specialCooldown <= 0) {
+      this.intent = Math.random() < 0.6 ? { type: 'food_projectile' } : { type: 'slime_heal' };
+      this.specialCooldown = 2.2 + Math.random() * 1.3;
+    }
+
+    const keepsDistance = this.type === 'wobble_mage' || this.type === 'silkweaver' || this.type === 'pocket_drake';
     if (dist < this.alertRange) {
       const nx = dx / (dist || 1);
       const ny = dy / (dist || 1);
@@ -118,6 +133,7 @@ export class Enemy {
       const next = world.resolveCollision(this.x + nx * step * moveScale, this.y + ny * step * moveScale, this.radius);
       this.x = next.x;
       this.y = next.y;
+      this.facing = { x: nx * moveScale, y: ny * moveScale };
     } else {
       this.wander.timer -= dt;
       if (this.wander.timer <= 0) {
@@ -129,6 +145,7 @@ export class Enemy {
       const next = world.resolveCollision(this.x + wx, this.y + wy, this.radius);
       this.x = next.x;
       this.y = next.y;
+      this.facing = { x: Math.cos(this.wander.angle), y: Math.sin(this.wander.angle) };
     }
 
     return dist < this.attackRange && this.cooldown <= 0;

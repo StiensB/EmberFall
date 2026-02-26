@@ -15,6 +15,7 @@ export class UIController {
       npcTalkPrompt: document.getElementById('npcTalkPrompt'),
       npcTalkPromptText: document.getElementById('npcTalkPromptText'),
       npcTalkBtn: document.getElementById('npcTalkBtn'),
+      npcShopBtn: document.getElementById('npcShopBtn'),
       saveBtn: document.getElementById('saveBtn'),
       closeMenu: document.getElementById('closeMenu'),
       menuBtnTop: document.getElementById('menuBtnTop'),
@@ -29,6 +30,7 @@ export class UIController {
     this.elements.menuBtnTop?.addEventListener('click', () => this.toggleMenu());
     this.elements.dialogueNext.addEventListener('click', () => this.game.advanceDialogue?.());
     this.elements.npcTalkBtn?.addEventListener('click', () => this.game.tryTalk?.());
+    this.elements.npcShopBtn?.addEventListener('click', () => this.game.tryOpenNearbyShop?.());
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.menuTab = btn.dataset.tab;
@@ -52,11 +54,20 @@ export class UIController {
     if (open) this.setNpcTalkPrompt(null);
   }
 
-  setNpcTalkPrompt(npc = null) {
+  setNpcTalkPrompt(npc = null, canOpenShop = false) {
     const hasDialogue = !this.elements.dialogueBox.classList.contains('hidden');
     const canTalk = !!npc && !hasDialogue;
     this.elements.npcTalkPrompt.classList.toggle('hidden', !canTalk);
-    if (canTalk) this.elements.npcTalkPromptText.textContent = `${npc.name} is nearby`;
+    if (!canTalk) return;
+    this.elements.npcTalkPromptText.textContent = `${npc.name} is nearby`;
+    this.elements.npcShopBtn?.classList.toggle('hidden', !canOpenShop);
+  }
+
+  openShop(shopName) {
+    this.toggleMenu(true);
+    this.menuTab = 'inventory';
+    this.renderMenu();
+    this.game.messages.unshift(`${shopName}'s wares are listed in your ledger inventory.`);
   }
 
   renderHud() {

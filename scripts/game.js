@@ -183,6 +183,22 @@ class EmberFallGame {
     this.world.setDynamicDungeon(run.zone);
   }
 
+
+  canOpenNearbyShopForNpc(npc) {
+    if (!npc || (npc.id !== 'smith' && npc.id !== 'chef')) return false;
+    const starterPairDone = this.questSystem.completed.has('smith_delivery') && this.questSystem.completed.has('chef_collect');
+    return starterPairDone && this.questSystem.isShopUnlocked(npc.id);
+  }
+
+  tryOpenNearbyShop() {
+    const lead = this.party.active;
+    const npc = this.world.nearestNpc(lead.x, lead.y);
+    if (!this.canOpenNearbyShopForNpc(npc)) return;
+    this.activeShop = npc.id;
+    this.ui.openShop(npc.name);
+    this.messages.unshift(`${npc.name}'s shop is open.`);
+  }
+
   tryTalk() {
     const lead = this.party.active;
     const npc = this.world.nearestNpc(lead.x, lead.y);
@@ -198,7 +214,7 @@ class EmberFallGame {
         lines.push('Quest complete! Rewards delivered.');
         if (npc.id === 'chef') lines.push('Kitchen shop unlocked and new orders are posted.');
         if (npc.id === 'smith') lines.push('Forge shop unlocked and a fresh forge request is available.');
-        if (npc.id === 'mayor') lines.push('Cavern gate unlocked. The boss is waiting beyond town.');
+        if (npc.id === 'mayor') lines.push('Southern meadow pass unlocked. A dangerous boss has appeared there.');
       }
     }
 
@@ -207,9 +223,7 @@ class EmberFallGame {
 
     if (npc.id === 'smith') {
       if (this.questSystem.isShopUnlocked('smith')) {
-        this.activeShop = 'smith';
-        this.ui.openShop(npc.name);
-        lines.push('Browse my upgrades in the shop ledger.');
+        lines.push(this.canOpenNearbyShopForNpc(npc) ? 'Use the nearby Shop button to browse my forge stock.' : 'Finish Chef and Smith starter jobs to enable quick shop access nearby.');
       } else {
         this.activeShop = null;
         lines.push('Finish my Spark Delivery first, then the forge opens.');
@@ -219,9 +233,7 @@ class EmberFallGame {
 
     if (npc.id === 'chef') {
       if (this.questSystem.isShopUnlocked('chef')) {
-        this.activeShop = 'chef';
-        this.ui.openShop(npc.name);
-        lines.push('Hungry? Grab some healing food from the shop ledger.');
+        lines.push(this.canOpenNearbyShopForNpc(npc) ? 'Use the nearby Shop button to browse my kitchen stock.' : 'Finish Chef and Smith starter jobs to enable quick shop access nearby.');
       } else {
         this.activeShop = null;
         lines.push('Bring me 3 Slime Gel and I\'ll open the kitchen shop.');
@@ -229,8 +241,8 @@ class EmberFallGame {
       if (activeNpcQuest) lines.push(`Current order: ${activeNpcQuest.description}`);
     }
 
-    if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('caverns')) {
-      lines.push('Chef then smith, then me. That\'s the official heroic paperwork route.');
+    if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('south_meadow')) {
+      lines.push('Clear the West Wilds first. Then I\'ll authorize the southern pass.');
     }
 
     this.dialogueQueue = lines;
@@ -356,6 +368,61 @@ class EmberFallGame {
       this.combat.spawnParticles(enemy.x, enemy.y, '#d8def4', 14);
     }
 
+
+    if (enemy.intent.type === 'fire_cone') {
+      const dx = lead.x - enemy.x;
+      const dy = lead.y - enemy.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const dir = enemy.facing || { x: dx / dist, y: dy / dist };
+      const dot = (dx / dist) * dir.x + (dy / dist) * dir.y;
+      if (dist < 180 && dot > 0.55) {
+        const damage = Math.max(1, Math.round(enemy.attack * 1.1 - (lead.stats?.defense || 0) * 0.2));
+        lead.hp = Math.max(0, lead.hp - damage);
+        lead.statuses = lead.statuses || [];
+        lead.statuses.push({ id: 'burn', duration: 2.8, dps: 6 + enemy.level * 0.8 });
+      }
+      this.combat.spawnParticles(enemy.x, enemy.y, '#ffb06e', 18);
+    }
+
+    if (enemy.intent.type === 'wing_gust') {
+      const dx = lead.x - enemy.x;
+      const dy = lead.y - enemy.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      if (dist < 210) {
+        const push = 90;
+        const knocked = this.world.resolveCollision(lead.x + (dx / dist) * push, lead.y + (dy / dist) * push, lead.radius);
+        lead.x = knocked.x;
+        lead.y = knocked.y;
+        const damage = Math.max(1, Math.round(enemy.attack * 0.6 - (lead.stats?.defense || 0) * 0.15));
+        lead.hp = Math.max(0, lead.hp - damage);
+      }
+      this.combat.spawnParticles(lead.x, lead.y, '#d7f1ff', 16);
+    }
+
+    if (enemy.intent.type === 'food_projectile') {
+      const dx = lead.x - enemy.x;
+      const dy = lead.y - enemy.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      this.enemyProjectiles.push({
+        x: enemy.x,
+        y: enemy.y,
+        vx: (dx / dist) * 150,
+        vy: (dy / dist) * 150,
+        life: 2.2,
+        radius: 10,
+        damage: Math.round(enemy.attack * 1.05),
+      });
+      this.combat.spawnParticles(enemy.x, enemy.y, '#ffd7a6', 14);
+    }
+
+    if (enemy.intent.type === 'slime_heal') {
+      const allies = this.enemies.filter((other) => other.hp > 0 && other.type.includes('slime') && Math.hypot(other.x - enemy.x, other.y - enemy.y) < 220);
+      allies.forEach((ally) => {
+        ally.hp = Math.min(ally.maxHp, ally.hp + Math.round(ally.maxHp * 0.22));
+        this.combat.spawnParticles(ally.x, ally.y, '#a7ffb7', 9);
+      });
+    }
+
     enemy.intent = null;
   }
 
@@ -425,7 +492,7 @@ class EmberFallGame {
       if (this.world.zoneId === 'town' && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * (0.8 + this.progression.town.apothecary * 0.25));
     });
     const nearbyNpc = this.world.nearestNpc(this.party.active.x, this.party.active.y);
-    this.ui.setNpcTalkPrompt(nearbyNpc);
+    this.ui.setNpcTalkPrompt(nearbyNpc, this.canOpenNearbyShopForNpc(nearbyNpc));
     if (Math.floor(this.elapsed * 2) % 2 === 0) this.ui.renderHud();
   }
 

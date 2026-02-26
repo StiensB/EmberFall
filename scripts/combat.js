@@ -163,7 +163,25 @@ export class CombatSystem {
   }
 
   damageEnemy(actor, enemy, powerScale, options = {}) {
-    const value = this.calcDamage(actor, enemy, powerScale, options);
+    let value = this.calcDamage(actor, enemy, powerScale, options);
+
+    if (enemy.type === 'rune_sentinel') {
+      const facing = enemy.facing || { x: 1, y: 0 };
+      const faceLen = Math.hypot(facing.x, facing.y) || 1;
+      const fx = facing.x / faceLen;
+      const fy = facing.y / faceLen;
+      const fromAttackerX = actor.x - enemy.x;
+      const fromAttackerY = actor.y - enemy.y;
+      const attackerLen = Math.hypot(fromAttackerX, fromAttackerY) || 1;
+      const ax = fromAttackerX / attackerLen;
+      const ay = fromAttackerY / attackerLen;
+      const inFrontArc = fx * ax + fy * ay > 0.2;
+      if (inFrontArc) {
+        value = Math.max(1, Math.round(value * 0.3));
+        this.spawnParticles(enemy.x, enemy.y, '#d8f2ff', 6);
+      }
+    }
+
     enemy.hp -= value;
     this.spawnParticles(enemy.x, enemy.y, options.color || '#ffffff', options.particles || 8);
     return value;
@@ -226,8 +244,8 @@ export class CombatSystem {
   }
 
   enemyAttack(enemy, target) {
-    const rangedCaster = enemy.type === 'wobble_mage';
-    enemy.cooldown = enemy.type === 'boss' ? 0.72 : rangedCaster ? 1.85 : 1.12;
+    const rangedCaster = enemy.type === 'wobble_mage' || enemy.type === 'pocket_drake' || enemy.type === 'chef_slime';
+    enemy.cooldown = enemy.type === 'boss' || enemy.type === 'chef_slime' ? 0.72 : rangedCaster ? 1.85 : 1.12;
     const base = Math.max(1, Math.round(enemy.attack * (0.92 + Math.random() * 0.22)));
     const defense = target.stats?.defense ?? target.baseStats?.defense ?? 0;
 
@@ -267,17 +285,43 @@ export class CombatSystem {
 
   processDeaths(enemies, awardXp) {
     const alive = [];
+    const queue = [];
+    const handled = new Set();
+
     enemies.forEach((enemy) => {
       if (enemy.hp > 0) alive.push(enemy);
-      else {
-        const gold = enemy.rollGold();
-        this.inventory.addLoot(enemy.drop, gold, enemy.level);
-        this.questSystem.onEnemyDefeated(enemy.type);
-        this.questSystem.onItemCollected(enemy.drop);
-        awardXp(enemy.xp);
-      }
+      else queue.push(enemy);
     });
-    return alive;
+
+    const handleDeath = (enemy) => {
+      if (!enemy || handled.has(enemy)) return;
+      handled.add(enemy);
+      const gold = enemy.rollGold();
+      this.inventory.addLoot(enemy.drop, gold, enemy.level);
+      this.questSystem.onEnemyDefeated(enemy.type);
+      this.questSystem.onItemCollected(enemy.drop);
+      awardXp(enemy.xp);
+
+      if (enemy.type === 'puff_zombie') {
+        const blastRadius = 130;
+        const blastDamage = Math.round(enemy.maxHp * 0.58);
+        this.spawnParticles(enemy.x, enemy.y, '#ffcf91', 20);
+        for (let i = alive.length - 1; i >= 0; i -= 1) {
+          const other = alive[i];
+          const dist = Math.hypot(other.x - enemy.x, other.y - enemy.y);
+          if (dist > blastRadius) continue;
+          other.hp -= blastDamage;
+          this.spawnParticles(other.x, other.y, '#ffc891', 10);
+          if (other.hp <= 0) {
+            alive.splice(i, 1);
+            queue.push(other);
+          }
+        }
+      }
+    };
+
+    while (queue.length) handleDeath(queue.pop());
+    return alive.filter((enemy) => enemy.hp > 0);
   }
 
   spawnParticles(x, y, color, count) {
