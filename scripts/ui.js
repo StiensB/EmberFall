@@ -13,6 +13,7 @@ export class UIController {
       dialogueNext: document.getElementById('dialogueNext'),
       saveBtn: document.getElementById('saveBtn'),
       closeMenu: document.getElementById('closeMenu'),
+      menuBtnTop: document.getElementById('menuBtnTop'),
     };
     this.menuTab = 'inventory';
     this.bindButtons();
@@ -21,6 +22,7 @@ export class UIController {
   bindButtons() {
     this.elements.saveBtn.addEventListener('click', () => this.game.saveGame());
     this.elements.closeMenu.addEventListener('click', () => this.toggleMenu(false));
+    this.elements.menuBtnTop?.addEventListener('click', () => this.toggleMenu());
     this.elements.dialogueNext.addEventListener('click', () => this.game.advanceDialogue());
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -58,8 +60,8 @@ export class UIController {
       })
       .join('');
 
-    const lines = questSystem.trackerText().slice(0, 3).join('<br/>') || 'No active quests';
-    this.elements.questTracker.innerHTML = `<strong>Gold:</strong> ${inventory.gold}<br/><strong>Quest:</strong><br/>${lines}`;
+    const lines = questSystem.trackerText().slice(0, 2).join('<br/>') || 'No active quests';
+    this.elements.questTracker.innerHTML = `<strong>Gold</strong>: ${inventory.gold}<br/><strong>Current Tasks</strong><br/>${lines}`;
     if (!this.elements.menu.classList.contains('hidden')) this.renderMenu();
   }
 

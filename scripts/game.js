@@ -74,8 +74,6 @@ class EmberFallGame {
       const rect = base.getBoundingClientRect();
       knob.style.left = `${rect.width / 2 - knob.offsetWidth / 2}px`;
       knob.style.top = `${rect.height / 2 - knob.offsetHeight / 2}px`;
-      knob.style.left = '28px';
-      knob.style.top = '28px';
       this.input.moveX = 0;
       this.input.moveY = 0;
     };
@@ -218,12 +216,6 @@ class EmberFallGame {
       if (inTown && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
     });
   }
-    this.party.members.forEach((m) => {
-      m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
-      if (m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
-    });
-  })}
-  
 
   update(dt) {
     this.elapsed += dt;
@@ -239,7 +231,6 @@ class EmberFallGame {
       this.spawnEnemies();
       return;
     }
-    
 
     this.moveLeader(dt);
     this.party.updateFollow(dt);
@@ -267,13 +258,6 @@ class EmberFallGame {
     ctx.fillRect(member.x - 8, member.y + 1 + bob, 16, 3);
 
     // Chibi head + hair cap
-    // Chibi body
-    ctx.fillStyle = member.color;
-    ctx.beginPath();
-    ctx.arc(member.x, member.y + 6 + bob, 10, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Chibi head
     ctx.fillStyle = '#ffe8d2';
     ctx.beginPath();
     ctx.arc(member.x, member.y - 10 + bob, 14, 0, Math.PI * 2);
@@ -291,10 +275,6 @@ class EmberFallGame {
     ctx.fillRect(member.x - 8, member.y - 9 + bob, 2, 2);
     ctx.fillRect(member.x + 6, member.y - 9 + bob, 2, 2);
 
-    ctx.fillStyle = '#2b315d';
-    ctx.fillRect(member.x - 5, member.y - 14 + bob, 3, 3);
-    ctx.fillRect(member.x + 2, member.y - 14 + bob, 3, 3);
-
     if (isLead) {
       ctx.strokeStyle = '#ffe067';
       ctx.lineWidth = 3;
@@ -308,58 +288,104 @@ class EmberFallGame {
     const ctx = this.ctx;
     const bob = Math.sin(this.elapsed * 5 + npc.x * 0.02) * 1.5;
 
-    // soft ground shadow
-    ctx.fillStyle = 'rgba(20, 24, 38, 0.3)';
+    // soft ground shadow with slight glow
+    ctx.fillStyle = 'rgba(18, 24, 38, 0.34)';
     ctx.beginPath();
-    ctx.ellipse(npc.x, npc.y + 20, 12, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(npc.x, npc.y + 20, 14, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.beginPath();
+    ctx.ellipse(npc.x, npc.y + 18, 9, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // body cloak
+    // rounded torso with modern shading
+    const torsoGrad = ctx.createLinearGradient(npc.x, npc.y - 4 + bob, npc.x, npc.y + 18 + bob);
+    torsoGrad.addColorStop(0, '#ffffff33');
+    torsoGrad.addColorStop(1, '#00000022');
     ctx.fillStyle = npc.color;
-    ctx.fillRect(npc.x - 10, npc.y - 1 + bob, 20, 18);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.fillRect(npc.x - 8, npc.y + 2 + bob, 16, 3);
-
-    // head
-    ctx.fillStyle = '#ffe8d2';
     ctx.beginPath();
-    ctx.arc(npc.x, npc.y - 11 + bob, 13, 0, Math.PI * 2);
+    ctx.roundRect(npc.x - 11, npc.y - 2 + bob, 22, 21, 8);
+    ctx.fill();
+    ctx.fillStyle = torsoGrad;
+    ctx.beginPath();
+    ctx.roundRect(npc.x - 11, npc.y - 2 + bob, 22, 21, 8);
     ctx.fill();
 
-    // hair/hat accent
-    ctx.fillStyle = '#5c567f';
+    // neck and scarf accent
+    ctx.fillStyle = '#f9d6bf';
+    ctx.fillRect(npc.x - 3, npc.y - 5 + bob, 6, 4);
+    ctx.fillStyle = 'rgba(255, 239, 187, 0.88)';
     ctx.beginPath();
-    ctx.arc(npc.x, npc.y - 14 + bob, 10, Math.PI, 0);
+    ctx.roundRect(npc.x - 9, npc.y - 1 + bob, 18, 5, 3);
     ctx.fill();
 
-    // face details
-    ctx.fillStyle = '#2b315d';
-    ctx.fillRect(npc.x - 4, npc.y - 14 + bob, 2, 2);
-    ctx.fillRect(npc.x + 2, npc.y - 14 + bob, 2, 2);
+    // layered head with richer hair shape
+    ctx.fillStyle = '#ffe9d8';
+    ctx.beginPath();
+    ctx.arc(npc.x, npc.y - 12 + bob, 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#4f4f78';
+    ctx.beginPath();
+    ctx.arc(npc.x, npc.y - 15 + bob, 11.5, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(npc.x - 11, npc.y - 15 + bob, 4, 8);
+    ctx.fillRect(npc.x + 7, npc.y - 15 + bob, 4, 8);
+
+    // subtle highlight on hair
+    ctx.fillStyle = 'rgba(255,255,255,0.24)';
+    ctx.beginPath();
+    ctx.arc(npc.x - 4, npc.y - 18 + bob, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // eyes, lashes, mouth, blush
+    ctx.fillStyle = '#22284d';
+    ctx.fillRect(npc.x - 5, npc.y - 14 + bob, 2, 3);
+    ctx.fillRect(npc.x + 3, npc.y - 14 + bob, 2, 3);
+    ctx.fillRect(npc.x - 6, npc.y - 15 + bob, 3, 1);
+    ctx.fillRect(npc.x + 3, npc.y - 15 + bob, 3, 1);
+    ctx.fillStyle = '#6a3550';
     ctx.fillRect(npc.x - 1, npc.y - 9 + bob, 2, 1);
-    ctx.fillStyle = '#ffb4c7';
-    ctx.fillRect(npc.x - 7, npc.y - 10 + bob, 2, 2);
-    ctx.fillRect(npc.x + 5, npc.y - 10 + bob, 2, 2);
+    ctx.fillStyle = '#ffb6c8';
+    ctx.fillRect(npc.x - 8, npc.y - 11 + bob, 2, 2);
+    ctx.fillRect(npc.x + 6, npc.y - 11 + bob, 2, 2);
 
-    // quest marker sparkle
+    // tiny boots for silhouette readability
+    ctx.fillStyle = '#303957';
+    ctx.fillRect(npc.x - 8, npc.y + 17 + bob, 6, 2);
+    ctx.fillRect(npc.x + 2, npc.y + 17 + bob, 6, 2);
+
+    // quest marker modernized: ring + sparkle
     if (npc.questId) {
-      ctx.fillStyle = '#ffe37a';
+      const markerY = npc.y - 32 + bob;
+      ctx.strokeStyle = '#ffe88a';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(npc.x, npc.y - 29 + bob, 4, 0, Math.PI * 2);
+      ctx.arc(npc.x, markerY, 5.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#fff4b2';
+      ctx.beginPath();
+      ctx.arc(npc.x, markerY, 2.2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillRect(npc.x - 1, npc.y - 37 + bob, 2, 16);
+      ctx.fillRect(npc.x - 1, markerY - 8, 2, 16);
     }
 
-    // name plate bubble for readability
-    const nameW = Math.max(40, npc.name.length * 6.5);
-    ctx.fillStyle = 'rgba(24, 28, 50, 0.72)';
-    ctx.fillRect(npc.x - nameW / 2, npc.y - 42, nameW, 14);
-    ctx.strokeStyle = 'rgba(163, 193, 255, 0.8)';
+    // name plate with rounded card style
+    const nameW = Math.max(48, npc.name.length * 7);
+    const nameX = npc.x - nameW / 2;
+    const nameY = npc.y - 45;
+    ctx.fillStyle = 'rgba(20, 26, 50, 0.78)';
+    ctx.beginPath();
+    ctx.roundRect(nameX, nameY, nameW, 16, 6);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(167, 202, 255, 0.85)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(npc.x - nameW / 2, npc.y - 42, nameW, 14);
-    ctx.fillStyle = '#f4f9ff';
+    ctx.beginPath();
+    ctx.roundRect(nameX, nameY, nameW, 16, 6);
+    ctx.stroke();
+    ctx.fillStyle = '#f6fbff';
     ctx.font = '11px sans-serif';
-    ctx.fillText(npc.name, npc.x - nameW / 2 + 4, npc.y - 32);
+    ctx.fillText(npc.name, nameX + 5, nameY + 11.5);
   }
 
   draw() {
@@ -377,12 +403,6 @@ class EmberFallGame {
 
     this.world.zone.npcs.forEach((npc) => {
       this.drawNpc(npc);
-      ctx.fillStyle = npc.color;
-      ctx.beginPath();
-      ctx.arc(npc.x, npc.y, 16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#222';
-      ctx.fillText(npc.name, npc.x - 28, npc.y - 24);
     });
 
     this.enemies.forEach((e) => {
@@ -429,21 +449,23 @@ class EmberFallGame {
 
   drawOverlay() {
     const ctx = this.ctx;
+    const minimapX = this.canvas.width - 136;
+    const minimapY = this.canvas.height - 248;
+
     ctx.fillStyle = 'rgba(18,20,32,0.6)';
-    ctx.fillRect(8, this.canvas.height - 122, 128, 112);
+    ctx.fillRect(minimapX, minimapY, 128, 112);
     ctx.fillStyle = '#fff';
     ctx.font = '12px sans-serif';
-    ctx.fillText('Minimap', 12, this.canvas.height - 106);
+    ctx.fillText('Minimap', minimapX + 4, minimapY + 16);
     const scaleX = 116 / this.world.zone.width;
     const scaleY = 86 / this.world.zone.height;
-    const mm = ctx.createLinearGradient(12, this.canvas.height - 100, 128, this.canvas.height - 14);
+    const mm = ctx.createLinearGradient(minimapX + 4, minimapY + 22, minimapX + 120, minimapY + 108);
     mm.addColorStop(0, '#a5dcff');
     mm.addColorStop(1, '#79b7ff');
     ctx.fillStyle = mm;
-    ctx.fillStyle = '#9ad3ff';
-    ctx.fillRect(12, this.canvas.height - 100, 116, 86);
+    ctx.fillRect(minimapX + 4, minimapY + 22, 116, 86);
     ctx.fillStyle = '#ffea7b';
-    ctx.fillRect(12 + this.party.active.x * scaleX - 2, this.canvas.height - 100 + this.party.active.y * scaleY - 2, 4, 4);
+    ctx.fillRect(minimapX + 4 + this.party.active.x * scaleX - 2, minimapY + 22 + this.party.active.y * scaleY - 2, 4, 4);
 
     ctx.fillStyle = '#fff';
     ctx.fillText(`${this.world.zone.name}`, 12, 20);
