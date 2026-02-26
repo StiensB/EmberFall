@@ -36,6 +36,7 @@ class EmberFallGame {
     this.input = { moveX: 0, moveY: 0 };
     this.renderCamera = { x: 0, y: 0 };
     this.renderZoom = 1;
+    this.zoneRespawnAt = 0;
 
     this.installControls();
     this.loadGame();
@@ -238,6 +239,7 @@ class EmberFallGame {
   spawnEnemies() {
     const zone = this.world.zone;
     this.enemies = [];
+    this.zoneRespawnAt = 0;
     const modifiers = this.world.zoneId === 'dungeon' ? this.dungeon.currentRun?.modifiers || [] : [];
     for (const pack of zone.enemySpawns) {
       for (let i = 0; i < pack.count; i += 1) {
@@ -301,6 +303,15 @@ class EmberFallGame {
     });
     this.enemies = this.combat.processDeaths(this.enemies, (xp) => this.addXp(xp));
     this.combat.updateParticles(dt);
+
+    if (!this.enemies.length && this.world.zoneId !== 'town' && this.world.zoneId !== 'dungeon') {
+      if (!this.zoneRespawnAt) {
+        this.zoneRespawnAt = this.elapsed + 7;
+      } else if (this.elapsed >= this.zoneRespawnAt) {
+        this.spawnEnemies();
+        this.messages.unshift(`${this.world.zone.name} stirs... New enemies emerge.`);
+      }
+    }
 
     if (!this.enemies.length && this.world.zoneId === 'dungeon' && this.dungeon.currentRun && !this.dungeon.currentRun.completed) {
       this.dungeon.completeRun();
