@@ -8,8 +8,18 @@ const QUESTS = {
     count: 3,
     turnInNpc: 'chef',
     rewards: { xp: 45, gold: 30 },
-    nextQuest: 'smith_delivery',
+    nextQuests: ['smith_delivery', 'chef_collect_2'],
     unlockShop: 'chef',
+  },
+  chef_collect_2: {
+    id: 'chef_collect_2',
+    title: 'Chef Encore',
+    description: 'Collect 5 Slime Gel for Chef Truffle\'s deluxe stock.',
+    type: 'collect',
+    target: 'Slime Gel',
+    count: 5,
+    turnInNpc: 'chef',
+    rewards: { xp: 65, gold: 45, items: [{ name: 'Potion', count: 1 }] },
   },
   smith_delivery: {
     id: 'smith_delivery',
@@ -20,8 +30,18 @@ const QUESTS = {
     count: 1,
     turnInNpc: 'smith',
     rewards: { xp: 30, gold: 20 },
-    nextQuest: 'mayor_clearance',
+    nextQuests: ['mayor_clearance', 'smith_hunt_2'],
     unlockShop: 'smith',
+  },
+  smith_hunt_2: {
+    id: 'smith_hunt_2',
+    title: 'Forge Recalibration',
+    description: 'Defeat 8 slimes to gather core sparks for Smith Bop.',
+    type: 'kill',
+    target: 'slime',
+    count: 8,
+    turnInNpc: 'smith',
+    rewards: { xp: 70, gold: 50, items: [{ name: 'Hi-Potion', count: 1 }] },
   },
   mayor_clearance: {
     id: 'mayor_clearance',
@@ -32,7 +52,7 @@ const QUESTS = {
     count: 6,
     turnInNpc: 'mayor',
     rewards: { xp: 80, gold: 45, items: [{ name: 'Potion', count: 2 }] },
-    nextQuest: 'main_2',
+    nextQuests: ['main_2'],
     unlockArea: 'caverns',
   },
   main_2: {
@@ -106,8 +126,28 @@ export class QuestSystem {
     grantXp(q.rewards.xp || 0);
     if (q.unlockShop) this.unlockedShops.add(q.unlockShop);
     if (q.unlockArea) this.unlockedAreas.add(q.unlockArea);
-    if (q.nextQuest) this.addQuest(q.nextQuest);
+    (q.nextQuests || []).forEach((nextQuestId) => this.addQuest(nextQuestId));
     return true;
+  }
+
+  getTurnInQuestForNpc(npcId) {
+    for (const [id, state] of this.active.entries()) {
+      const q = QUESTS[id];
+      if (q?.turnInNpc === npcId && state.progress >= q.count) return id;
+    }
+    return null;
+  }
+
+  getActiveQuestForNpc(npcId) {
+    for (const [id] of this.active.entries()) {
+      const q = QUESTS[id];
+      if (q?.turnInNpc === npcId) return id;
+    }
+    return null;
+  }
+
+  hasQuestForNpc(npcId) {
+    return Boolean(this.getActiveQuestForNpc(npcId));
   }
 
   isShopUnlocked(shopId) {

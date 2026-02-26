@@ -186,16 +186,20 @@ class EmberFallGame {
     if (!npc) return;
 
     const lines = [...(npc.lines || [])];
-    if (npc.questId && this.questSystem.canTurnIn(npc.questId, npc.id)) {
-      const ok = this.questSystem.claim(npc.questId, this.inventory, (xp) => this.addXp(xp));
+    const questToTurnIn = this.questSystem.getTurnInQuestForNpc(npc.id);
+    if (questToTurnIn) {
+      const ok = this.questSystem.claim(questToTurnIn, this.inventory, (xp) => this.addXp(xp));
       if (ok) {
         this.audio.playQuest();
         lines.push('Quest complete! Rewards delivered.');
-        if (npc.id === 'chef') lines.push('Kitchen shop unlocked. Next stop: Smith Bop.');
-        if (npc.id === 'smith') lines.push('Forge shop unlocked. Mayor Puffle wants to speak with you.');
+        if (npc.id === 'chef') lines.push('Kitchen shop unlocked and new orders are posted.');
+        if (npc.id === 'smith') lines.push('Forge shop unlocked and a fresh forge request is available.');
         if (npc.id === 'mayor') lines.push('Cavern gate unlocked. The boss is waiting beyond town.');
       }
     }
+
+    const activeNpcQuestId = this.questSystem.getActiveQuestForNpc(npc.id);
+    const activeNpcQuest = activeNpcQuestId ? QuestSystem.QUESTS[activeNpcQuestId] : null;
 
     if (npc.id === 'smith') {
       if (this.questSystem.isShopUnlocked('smith')) {
@@ -206,6 +210,7 @@ class EmberFallGame {
         this.activeShop = null;
         lines.push('Finish my Spark Delivery first, then the forge opens.');
       }
+      if (activeNpcQuest) lines.push(`Current request: ${activeNpcQuest.description}`);
     }
 
     if (npc.id === 'chef') {
@@ -215,8 +220,9 @@ class EmberFallGame {
         lines.push('Hungry? Grab some healing food from the shop ledger.');
       } else {
         this.activeShop = null;
-        lines.push('Bring me 3 Slime Gel and I\'ll open the kitchen shop.');
+        lines.push('Bring me 3 Slime Gel and I'll open the kitchen shop.');
       }
+      if (activeNpcQuest) lines.push(`Current order: ${activeNpcQuest.description}`);
     }
 
     if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('caverns')) {
@@ -562,7 +568,7 @@ class EmberFallGame {
     ctx.fillRect(npc.x + 2, npc.y + 17 + bob, 6, 2);
 
     // quest marker modernized: ring + sparkle
-    if (npc.questId) {
+    if (this.questSystem.hasQuestForNpc(npc.id)) {
       const markerY = npc.y - 32 + bob;
       ctx.strokeStyle = '#ffe88a';
       ctx.lineWidth = 2;
