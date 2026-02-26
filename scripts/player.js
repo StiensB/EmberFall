@@ -51,7 +51,7 @@ export class PartyMember {
 
     this.statuses = this.statuses.filter((status) => {
       status.duration -= dt;
-      if (status.id === 'poison') this.hp -= dt * status.dps;
+      if (status.id === 'poison') this.hp = Math.max(0, this.hp - dt * status.dps);
       return status.duration > 0;
     });
   }

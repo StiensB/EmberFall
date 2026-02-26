@@ -108,7 +108,7 @@ export class CombatSystem {
     const defense = target.stats.defense;
     const passiveMit = target.className === 'Warrior' ? 0.9 : 1;
     const damage = Math.max(1, Math.round((base - defense * 0.35) * passiveMit * 1.18));
-    target.hp -= damage;
+    target.hp = Math.max(0, target.hp - damage);
 
     if (enemy.modifiers.some((m) => m.id === 'plague') && Math.random() < 0.22) {
       target.statuses = target.statuses || [];
@@ -118,7 +118,7 @@ export class CombatSystem {
     if (enemy.type === 'boss' && enemy.phase === 2 && Math.random() < 0.25) {
       this.party.members.forEach((member) => {
         if (member.hp > 0 && Math.hypot(member.x - enemy.x, member.y - enemy.y) < 170) {
-          member.hp -= Math.max(1, Math.round(enemy.attack * 0.35));
+          member.hp = Math.max(0, member.hp - Math.max(1, Math.round(enemy.attack * 0.35)));
         }
       });
     }
@@ -142,7 +142,10 @@ export class CombatSystem {
   }
 
   spawnParticles(x, y, color, count) {
-    for (let i = 0; i < count; i += 1) {
+    const maxParticles = 700;
+    const room = Math.max(0, maxParticles - this.particles.length);
+    const spawnCount = Math.min(count, room);
+    for (let i = 0; i < spawnCount; i += 1) {
       this.particles.push({
         x,
         y,
