@@ -33,7 +33,7 @@ const QUESTS = {
     turnInNpc: 'mayor',
     rewards: { xp: 80, gold: 45, items: [{ name: 'Potion', count: 2 }] },
     nextQuest: 'main_2',
-    unlockArea: 'cavern',
+    unlockArea: 'caverns',
   },
   main_2: {
     id: 'main_2',

@@ -1,3 +1,5 @@
+import { rollLoot } from './loot.js';
+
 const EQUIPMENT_POOL = [
   { id: 'twig_blade', name: 'Twig Blade', slot: 'weapon', stats: { attack: 4 } },
   { id: 'cushion_armor', name: 'Cushion Armor', slot: 'armor', stats: { maxHp: 18, defense: 3 } },
@@ -24,10 +26,14 @@ export class InventorySystem {
     return true;
   }
 
-  addLoot(dropName, gold) {
+  addLoot(dropName, gold, enemyLevel = 1) {
     this.addItem(dropName, 1);
     this.gold += gold;
-    if (Math.random() < 0.17) this.equipmentBag.push({ ...EQUIPMENT_POOL[Math.floor(Math.random() * EQUIPMENT_POOL.length)] });
+    if (Math.random() < 0.22) {
+      const base = EQUIPMENT_POOL[Math.floor(Math.random() * EQUIPMENT_POOL.length)];
+      const loot = rollLoot({ ...base, id: `${base.id}_${Date.now()}_${Math.floor(Math.random() * 999)}` }, enemyLevel);
+      this.equipmentBag.push(loot);
+    }
   }
 
   equip(member, itemId) {
