@@ -85,6 +85,7 @@ export class HDRenderer {
 
   setupWebGL() {
     const gl = this.gl;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     const vert = shader(gl, gl.VERTEX_SHADER, VERT_SRC);
     const frag = shader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
     if (!vert || !frag) return false;
