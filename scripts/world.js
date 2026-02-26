@@ -113,6 +113,7 @@ export class World {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, zone.width, zone.height);
 
+    ctx.globalAlpha = 0.1;
     ctx.globalAlpha = 0.16;
     ctx.fillStyle = '#ffffff';
     for (let y = 0; y < zone.height; y += TILE) {
@@ -122,11 +123,26 @@ export class World {
     }
     ctx.globalAlpha = 1;
 
+    // Decorative foliage/crystals for a more lively map silhouette.
+    for (let i = 0; i < 75; i += 1) {
+      const px = ((i * 173) % zone.width) + 12;
+      const py = ((i * 223) % zone.height) + 12;
+      const hue = zone.name.includes('Cavern') ? '#9c8dff' : '#8fe39a';
+      ctx.fillStyle = hue;
+      ctx.beginPath();
+      ctx.arc(px, py, 6 + (i % 4), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(px - 1, py - 2, 2, 4);
+    }
+
     ctx.fillStyle = '#4e6485';
     zone.blockers.forEach((b) => {
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.fillStyle = '#2d3f58';
       ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, b.h - 16);
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(b.x + 10, b.y + 10, b.w - 20, 8);
       ctx.fillStyle = '#4e6485';
     });
 

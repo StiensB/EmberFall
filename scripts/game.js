@@ -71,6 +71,9 @@ class EmberFallGame {
     });
     const resetStick = () => {
       pointerId = null;
+      const rect = base.getBoundingClientRect();
+      knob.style.left = `${rect.width / 2 - knob.offsetWidth / 2}px`;
+      knob.style.top = `${rect.height / 2 - knob.offsetHeight / 2}px`;
       knob.style.left = '28px';
       knob.style.top = '28px';
       this.input.moveX = 0;
@@ -243,6 +246,19 @@ class EmberFallGame {
     const ctx = this.ctx;
     const bob = Math.sin(this.elapsed * 8 + member.x * 0.01) * 1.8;
 
+    // Shadow
+    ctx.fillStyle = 'rgba(22, 24, 36, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(member.x, member.y + 20, 13, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Chibi body + tiny cape
+    ctx.fillStyle = member.color;
+    ctx.fillRect(member.x - 10, member.y - 2 + bob, 20, 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.24)';
+    ctx.fillRect(member.x - 8, member.y + 1 + bob, 16, 3);
+
+    // Chibi head + hair cap
     // Chibi body
     ctx.fillStyle = member.color;
     ctx.beginPath();
@@ -254,6 +270,18 @@ class EmberFallGame {
     ctx.beginPath();
     ctx.arc(member.x, member.y - 10 + bob, 14, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = '#4f4d79';
+    ctx.beginPath();
+    ctx.arc(member.x, member.y - 14 + bob, 11, Math.PI, 0);
+    ctx.fill();
+
+    // Eyes + blush
+    ctx.fillStyle = '#2b315d';
+    ctx.fillRect(member.x - 5, member.y - 14 + bob, 3, 3);
+    ctx.fillRect(member.x + 2, member.y - 14 + bob, 3, 3);
+    ctx.fillStyle = '#ffb4c7';
+    ctx.fillRect(member.x - 8, member.y - 9 + bob, 2, 2);
+    ctx.fillRect(member.x + 6, member.y - 9 + bob, 2, 2);
 
     ctx.fillStyle = '#2b315d';
     ctx.fillRect(member.x - 5, member.y - 14 + bob, 3, 3);
@@ -291,10 +319,26 @@ class EmberFallGame {
     });
 
     this.enemies.forEach((e) => {
+      ctx.fillStyle = 'rgba(10, 12, 22, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + e.radius + 5, e.radius * 0.8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.fillStyle = e.color;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(e.x - e.radius * 0.3, e.y - e.radius * 0.3, e.radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Face details for friendly/chibi readability
+      ctx.fillStyle = '#1d2244';
+      ctx.fillRect(e.x - 5, e.y - 3, 2, 2);
+      ctx.fillRect(e.x + 3, e.y - 3, 2, 2);
+      ctx.fillRect(e.x - 2, e.y + 2, 4, 2);
+
       ctx.fillStyle = '#112';
       const hpW = 34;
       ctx.fillRect(e.x - hpW / 2, e.y - e.radius - 14, hpW, 4);
@@ -325,6 +369,10 @@ class EmberFallGame {
     ctx.fillText('Minimap', 12, this.canvas.height - 106);
     const scaleX = 116 / this.world.zone.width;
     const scaleY = 86 / this.world.zone.height;
+    const mm = ctx.createLinearGradient(12, this.canvas.height - 100, 128, this.canvas.height - 14);
+    mm.addColorStop(0, '#a5dcff');
+    mm.addColorStop(1, '#79b7ff');
+    ctx.fillStyle = mm;
     ctx.fillStyle = '#9ad3ff';
     ctx.fillRect(12, this.canvas.height - 100, 116, 86);
     ctx.fillStyle = '#ffea7b';
