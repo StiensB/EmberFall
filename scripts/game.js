@@ -171,12 +171,12 @@ class EmberFallGame {
         lines.push('Hungry? Grab some healing food from the shop ledger.');
       } else {
         this.activeShop = null;
-        lines.push('Bring me 3 Slime Gel and I'll open the kitchen shop.');
+        lines.push('Bring me 3 Slime Gel and I\'ll open the kitchen shop.');
       }
     }
 
     if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('cavern')) {
-      lines.push('Chef then smith, then me. That's the official heroic paperwork route.');
+      lines.push('Chef then smith, then me. That\'s the official heroic paperwork route.');
     }
 
     this.dialogueQueue = lines;

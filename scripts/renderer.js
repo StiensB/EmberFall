@@ -45,7 +45,10 @@ void main() {
 
   vec3 backdrop = parallax(vUv, 0.35) * 0.45 + parallax(vUv, 0.75) * 0.3 + parallax(vUv, 1.0) * 0.25;
   vec3 litScene = scene.rgb * (ambient + diff * 0.88);
-  vec3 color = mix(backdrop, litScene, scene.a);
+  float sceneMask = max(max(scene.r, scene.g), scene.b);
+  float scenePresence = smoothstep(0.01, 0.08, sceneMask);
+  vec3 color = mix(backdrop * 0.45, litScene, scenePresence);
+  color += backdrop * 0.18;
   color += bloom * (0.22 + uCombatBoost * 0.18);
 
   float vignette = smoothstep(0.95, 0.2, distance(vUv, vec2(0.5)));
@@ -58,9 +61,7 @@ function shader(gl, type, source) {
   const s = gl.createShader(type);
   gl.shaderSource(s, source);
   gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    throw new Error(gl.getShaderInfoLog(s));
-  }
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) return null;
   return s;
 }
 
@@ -76,16 +77,23 @@ export class HDRenderer {
     this.gl = canvas.getContext('webgl', { alpha: false, antialias: true, powerPreference: 'high-performance' });
     this.webglEnabled = Boolean(this.gl);
 
-    if (this.webglEnabled) this.setupWebGL();
+    if (this.webglEnabled) {
+      const ok = this.setupWebGL();
+      this.webglEnabled = Boolean(ok);
+    }
   }
 
   setupWebGL() {
     const gl = this.gl;
+    const vert = shader(gl, gl.VERTEX_SHADER, VERT_SRC);
+    const frag = shader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
+    if (!vert || !frag) return false;
+
     const program = gl.createProgram();
-    gl.attachShader(program, shader(gl, gl.VERTEX_SHADER, VERT_SRC));
-    gl.attachShader(program, shader(gl, gl.FRAGMENT_SHADER, FRAG_SRC));
+    gl.attachShader(program, vert);
+    gl.attachShader(program, frag);
     gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return false;
 
     this.program = program;
     gl.useProgram(program);
@@ -118,6 +126,7 @@ export class HDRenderer {
       zoom: gl.getUniformLocation(program, 'uZoom'),
       combatBoost: gl.getUniformLocation(program, 'uCombatBoost'),
     };
+    return true;
   }
 
   resize(cssWidth, cssHeight) {
