@@ -210,9 +210,10 @@ class EmberFallGame {
   }
 
   updateManaRegen(dt) {
+    const inTown = this.world.zoneId === 'town';
     this.party.members.forEach((m) => {
       m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
-      if (m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
+      if (inTown && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
     });
   }
 
