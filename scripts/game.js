@@ -94,6 +94,65 @@ class EmberFallGame {
       this.audio.ensure();
       if (this.messages[0]?.includes('Tap canvas')) this.messages.shift();
     });
+
+    const movementKeys = {
+      ArrowUp: [0, -1],
+      KeyW: [0, -1],
+      ArrowDown: [0, 1],
+      KeyS: [0, 1],
+      ArrowLeft: [-1, 0],
+      KeyA: [-1, 0],
+      ArrowRight: [1, 0],
+      KeyD: [1, 0],
+    };
+    const pressed = new Set();
+    const updateKeyboardMovement = () => {
+      let moveX = 0;
+      let moveY = 0;
+      pressed.forEach((code) => {
+        const vector = movementKeys[code];
+        if (!vector) return;
+        moveX += vector[0];
+        moveY += vector[1];
+      });
+      const len = Math.hypot(moveX, moveY) || 1;
+      this.input.moveX = moveX === 0 ? 0 : moveX / len;
+      this.input.moveY = moveY === 0 ? 0 : moveY / len;
+    };
+
+    window.addEventListener('keydown', (ev) => {
+      if (ev.code === 'Space') {
+        ev.preventDefault();
+        this.onSkillButton('attack');
+        return;
+      }
+      if (ev.code === 'KeyQ') {
+        ev.preventDefault();
+        this.onSkillButton('skill1');
+        return;
+      }
+      if (ev.code === 'KeyE') {
+        ev.preventDefault();
+        this.onSkillButton('skill2');
+        return;
+      }
+      if (movementKeys[ev.code]) {
+        ev.preventDefault();
+        pressed.add(ev.code);
+        updateKeyboardMovement();
+      }
+    });
+
+    window.addEventListener('keyup', (ev) => {
+      if (!movementKeys[ev.code]) return;
+      pressed.delete(ev.code);
+      updateKeyboardMovement();
+    });
+
+    window.addEventListener('blur', () => {
+      pressed.clear();
+      updateKeyboardMovement();
+    });
   }
 
   rebuildStats() {
