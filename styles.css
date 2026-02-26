@@ -1,0 +1,109 @@
+:root {
+  --bg: #201d38;
+  --panel: rgba(28, 32, 61, 0.84);
+  --panel-border: #93b4ff;
+  --text: #f5f9ff;
+  --accent: #ffbf5f;
+  --hp: #ff6f8a;
+  --mp: #5ec7ff;
+}
+
+* { box-sizing: border-box; touch-action: manipulation; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #30487e, var(--bg));
+  color: var(--text);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+#app {
+  position: relative;
+  width: min(100vw, 560px);
+  margin: 0 auto;
+  height: 100vh;
+  overflow: hidden;
+}
+#gameCanvas {
+  width: 100%;
+  height: 100vh;
+  image-rendering: pixelated;
+  display: block;
+}
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+}
+#topBar, #bottomBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: auto;
+}
+#bottomBar {
+  flex-direction: row-reverse;
+}
+#partyBars { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.bar-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.bar { height: 6px; border-radius: 999px; background: #202944; overflow: hidden; margin-top: 2px; }
+.bar > span { display: block; height: 100%; }
+.hp > span { background: var(--hp); }
+.mp > span { background: var(--mp); }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+#questTracker { align-self: flex-end; max-width: 64%; font-size: 12px; padding: 8px; margin-bottom: 6px; }
+#dialogueBox { position: absolute; left: 10px; right: 10px; bottom: 140px; padding: 10px; }
+#dialogueText { margin: 0 0 8px; min-height: 36px; }
+
+#joystickBase {
+  width: 98px; height: 98px; border-radius: 50%;
+  background: rgba(16, 20, 38, 0.6); border: 2px solid #8aa5f7;
+  position: relative;
+}
+#joystickKnob {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(177, 211, 255, 0.9);
+  position: absolute; left: 28px; top: 28px;
+}
+#skillButtons { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; align-content: end; }
+.skill-btn, .ui-btn, .tab-btn {
+  border: 1px solid #dce7ff;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.14);
+  color: var(--text);
+  font-weight: 700;
+  padding: 8px;
+}
+.skill-btn { min-height: 48px; }
+
+#menu {
+  position: absolute;
+  left: 12px; right: 12px; top: 12px; bottom: 12px;
+  padding: 10px;
+  overflow: auto;
+}
+#menuContent { margin-top: 8px; font-size: 14px; }
+.tab-btn.active { background: rgba(255, 191, 95, 0.3); }
+.hidden { display: none !important; }
+
+@media (max-height: 700px) {
+  #joystickBase { width: 78px; height: 78px; }
+  #joystickKnob { width: 34px; height: 34px; left: 22px; top: 22px; }
+  #skillButtons { grid-template-columns: repeat(3, 56px); }
+}
