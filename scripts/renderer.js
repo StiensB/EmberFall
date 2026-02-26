@@ -27,23 +27,24 @@ vec3 parallax(vec2 uv, float depth) {
 }
 
 void main() {
+  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
   vec2 texel = 1.0 / uResolution;
-  vec4 scene = texture2D(uScene, vUv);
-  vec3 n = texture2D(uNormal, vUv).xyz * 2.0 - 1.0;
+  vec4 scene = texture2D(uScene, uv);
+  vec3 n = texture2D(uNormal, uv).xyz * 2.0 - 1.0;
 
   vec2 lpos = vec2(0.5 + sin(uTime * 0.5) * 0.12, 0.34 + cos(uTime * 0.4) * 0.08);
-  vec3 lightDir = normalize(vec3(lpos - vUv, 0.56));
+  vec3 lightDir = normalize(vec3(lpos - uv, 0.56));
   float diff = max(dot(normalize(n), lightDir), 0.0);
   float ambient = 0.37;
 
-  vec4 b0 = texture2D(uScene, vUv + vec2(texel.x, 0.0));
-  vec4 b1 = texture2D(uScene, vUv + vec2(-texel.x, 0.0));
-  vec4 b2 = texture2D(uScene, vUv + vec2(0.0, texel.y));
-  vec4 b3 = texture2D(uScene, vUv + vec2(0.0, -texel.y));
+  vec4 b0 = texture2D(uScene, uv + vec2(texel.x, 0.0));
+  vec4 b1 = texture2D(uScene, uv + vec2(-texel.x, 0.0));
+  vec4 b2 = texture2D(uScene, uv + vec2(0.0, texel.y));
+  vec4 b3 = texture2D(uScene, uv + vec2(0.0, -texel.y));
   vec3 bloom = max(max(b0.rgb, b1.rgb), max(b2.rgb, b3.rgb));
   bloom = max(vec3(0.0), bloom - 0.72) * 1.7;
 
-  vec3 backdrop = parallax(vUv, 0.35) * 0.45 + parallax(vUv, 0.75) * 0.3 + parallax(vUv, 1.0) * 0.25;
+  vec3 backdrop = parallax(uv, 0.35) * 0.45 + parallax(uv, 0.75) * 0.3 + parallax(uv, 1.0) * 0.25;
   vec3 litScene = scene.rgb * (ambient + diff * 0.88);
   float sceneMask = max(max(scene.r, scene.g), scene.b);
   float scenePresence = smoothstep(0.01, 0.08, sceneMask);
@@ -51,7 +52,7 @@ void main() {
   color += backdrop * 0.18;
   color += bloom * (0.22 + uCombatBoost * 0.18);
 
-  float vignette = smoothstep(0.95, 0.2, distance(vUv, vec2(0.5)));
+  float vignette = smoothstep(0.95, 0.2, distance(uv, vec2(0.5)));
   color *= vignette;
 
   gl_FragColor = vec4(color, 1.0);
@@ -85,7 +86,7 @@ export class HDRenderer {
 
   setupWebGL() {
     const gl = this.gl;
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     const vert = shader(gl, gl.VERTEX_SHADER, VERT_SRC);
     const frag = shader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
     if (!vert || !frag) return false;
