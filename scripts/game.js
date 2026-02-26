@@ -484,6 +484,16 @@ class EmberFallGame {
     const ctx = this.renderer.sceneCtx;
     const bob = Math.sin(this.elapsed * 5 + npc.x * 0.02) * 1.5;
 
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(15, 18, 34, 0.85)';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeText(npc.name, npc.x, npc.y - 38 + bob);
+    ctx.fillText(npc.name, npc.x, npc.y - 38 + bob);
+    ctx.restore();
+
     // soft ground shadow with slight glow
     ctx.fillStyle = 'rgba(18, 24, 38, 0.34)';
     ctx.beginPath();
@@ -602,16 +612,44 @@ class EmberFallGame {
       ctx.closePath();
       ctx.fill();
     } else if (enemy.type === 'mushroom') {
-      ctx.fillStyle = '#f6cab4';
-      ctx.fillRect(enemy.x - 4, enemy.y - 1, 8, enemy.radius + 3);
-      ctx.fillStyle = '#f08b72';
+      const skullY = enemy.y - 2 + pulse;
+      ctx.fillStyle = '#e9e6dc';
       ctx.beginPath();
-      ctx.arc(enemy.x, enemy.y - 2 + pulse, enemy.radius + 3, Math.PI, Math.PI * 2);
+      ctx.arc(enemy.x, skullY, enemy.radius + 1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#c7c2b4';
+      ctx.fillRect(enemy.x - 7, enemy.y + enemy.radius - 2, 14, 8);
+      ctx.fillStyle = '#ece9de';
+      ctx.fillRect(enemy.x - 6, enemy.y + enemy.radius - 1, 2, 6);
+      ctx.fillRect(enemy.x - 2, enemy.y + enemy.radius - 1, 2, 6);
+      ctx.fillRect(enemy.x + 2, enemy.y + enemy.radius - 1, 2, 6);
+
+      ctx.fillStyle = '#1d2238';
+      ctx.beginPath();
+      ctx.arc(enemy.x - 4, skullY - 2, 2.6, 0, Math.PI * 2);
+      ctx.arc(enemy.x + 4, skullY - 2, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(enemy.x, skullY + 1);
+      ctx.lineTo(enemy.x - 2, skullY + 4);
+      ctx.lineTo(enemy.x + 2, skullY + 4);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = '#ffdcd2';
-      ctx.fillRect(enemy.x - 9, enemy.y + 1, 3, 3);
-      ctx.fillRect(enemy.x + 5, enemy.y - 1, 3, 3);
+
+      ctx.strokeStyle = '#bcb6a8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(enemy.x - enemy.radius - 8, enemy.y + 3);
+      ctx.lineTo(enemy.x + enemy.radius + 8, enemy.y + 3);
+      ctx.stroke();
+
+      ctx.fillStyle = '#e9e6dc';
+      ctx.beginPath();
+      ctx.arc(enemy.x - enemy.radius - 8, enemy.y + 3, 2.5, 0, Math.PI * 2);
+      ctx.arc(enemy.x + enemy.radius + 8, enemy.y + 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
     } else if (enemy.type === 'wraith') {
       const grad = ctx.createLinearGradient(enemy.x, enemy.y - enemy.radius - 4, enemy.x, enemy.y + enemy.radius + 8);
       grad.addColorStop(0, '#b8c4ff');
