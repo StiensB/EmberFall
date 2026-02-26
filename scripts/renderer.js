@@ -75,13 +75,32 @@ export class HDRenderer {
     this.normalCanvas = document.createElement('canvas');
     this.sceneCtx = this.sceneCanvas.getContext('2d');
     this.normalCtx = this.normalCanvas.getContext('2d');
-    this.gl = canvas.getContext('webgl', { alpha: false, antialias: true, powerPreference: 'high-performance' });
-    this.webglEnabled = Boolean(this.gl);
+    this.gl = null;
+    this.outputCtx = null;
+    this.webglEnabled = false;
 
-    if (this.webglEnabled) {
-      const ok = this.setupWebGL();
-      this.webglEnabled = Boolean(ok);
+    if (HDRenderer.canUseWebGLPipeline()) {
+      this.gl = canvas.getContext('webgl', { alpha: false, antialias: true, powerPreference: 'high-performance' });
+      this.webglEnabled = Boolean(this.gl && this.setupWebGL());
     }
+
+    if (!this.webglEnabled) this.outputCtx = canvas.getContext('2d');
+  }
+
+  static canUseWebGLPipeline() {
+    const probeCanvas = document.createElement('canvas');
+    const gl = probeCanvas.getContext('webgl');
+    if (!gl) return false;
+
+    const vert = shader(gl, gl.VERTEX_SHADER, VERT_SRC);
+    const frag = shader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
+    if (!vert || !frag) return false;
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vert);
+    gl.attachShader(program, frag);
+    gl.linkProgram(program);
+    return Boolean(gl.getProgramParameter(program, gl.LINK_STATUS));
   }
 
   setupWebGL() {
@@ -171,7 +190,8 @@ export class HDRenderer {
 
   compose({ camera, time, combatBoost, zoom }) {
     if (!this.webglEnabled) {
-      const ctx = this.canvas.getContext('2d');
+      const ctx = this.outputCtx;
+      if (!ctx) return;
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       ctx.drawImage(this.sceneCanvas, 0, 0, this.sceneCanvas.width / this.scaleFactor, this.sceneCanvas.height / this.scaleFactor);
