@@ -245,29 +245,104 @@ class EmberFallGame {
     const ctx = this.ctx;
     const bob = Math.sin(this.elapsed * 8 + member.x * 0.01) * 1.8;
 
+    // Class-themed palette accents for readability
+    const classVisuals = {
+      Warrior: { hair: '#634a3d', trim: '#ffd773', cloth: '#b9474f' },
+      Mage: { hair: '#6f5db3', trim: '#9be6ff', cloth: '#7f63d6' },
+      Ranger: { hair: '#4f7d45', trim: '#90d46d', cloth: '#6ba66c' },
+    };
+    const visual = classVisuals[member.className] || { hair: '#4f4d79', trim: '#ffe067', cloth: member.color };
+
     // Shadow
     ctx.fillStyle = 'rgba(22, 24, 36, 0.35)';
     ctx.beginPath();
     ctx.ellipse(member.x, member.y + 20, 13, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Chibi body + tiny cape
+    // Base body
     ctx.fillStyle = member.color;
-    ctx.fillRect(member.x - 10, member.y - 2 + bob, 20, 20);
-    ctx.fillStyle = 'rgba(255,255,255,0.24)';
-    ctx.fillRect(member.x - 8, member.y + 1 + bob, 16, 3);
+    ctx.beginPath();
+    ctx.roundRect(member.x - 10, member.y - 2 + bob, 20, 20, 6);
+    ctx.fill();
 
-    // Chibi head + hair cap
+    // Class outfit silhouettes
+    if (member.className === 'Warrior') {
+      // Armor shoulder plates + chest trim
+      ctx.fillStyle = '#ced6ea';
+      ctx.fillRect(member.x - 12, member.y + 1 + bob, 4, 5);
+      ctx.fillRect(member.x + 8, member.y + 1 + bob, 4, 5);
+      ctx.fillStyle = '#7f8aa8';
+      ctx.fillRect(member.x - 3, member.y + 1 + bob, 6, 9);
+      ctx.fillStyle = visual.trim;
+      ctx.fillRect(member.x - 9, member.y + 10 + bob, 18, 2);
+    } else if (member.className === 'Mage') {
+      // Arcane robe + pendant
+      ctx.fillStyle = visual.cloth;
+      ctx.beginPath();
+      ctx.moveTo(member.x - 10, member.y + 6 + bob);
+      ctx.lineTo(member.x + 10, member.y + 6 + bob);
+      ctx.lineTo(member.x + 6, member.y + 18 + bob);
+      ctx.lineTo(member.x - 6, member.y + 18 + bob);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#d6f5ff';
+      ctx.fillRect(member.x - 1, member.y + 6 + bob, 2, 6);
+      ctx.fillStyle = visual.trim;
+      ctx.beginPath();
+      ctx.arc(member.x, member.y + 13 + bob, 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (member.className === 'Ranger') {
+      // Ranger vest + quiver strap
+      ctx.fillStyle = '#3f6448';
+      ctx.fillRect(member.x - 9, member.y + 1 + bob, 18, 10);
+      ctx.fillStyle = '#7f5a34';
+      ctx.fillRect(member.x - 8, member.y - 1 + bob, 16, 2);
+      ctx.save();
+      ctx.translate(member.x, member.y + 5 + bob);
+      ctx.rotate(-0.55);
+      ctx.fillStyle = '#d8c293';
+      ctx.fillRect(-1, -9, 2, 18);
+      ctx.restore();
+    }
+
+    // Head + class-themed hair
     ctx.fillStyle = '#ffe8d2';
     ctx.beginPath();
     ctx.arc(member.x, member.y - 10 + bob, 14, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#4f4d79';
+
+    ctx.fillStyle = visual.hair;
     ctx.beginPath();
     ctx.arc(member.x, member.y - 14 + bob, 11, Math.PI, 0);
     ctx.fill();
 
-    // Eyes + blush
+    if (member.className === 'Warrior') {
+      // Helmet rim
+      ctx.strokeStyle = '#d4dfef';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(member.x, member.y - 14 + bob, 11, Math.PI * 1.06, Math.PI * 1.94);
+      ctx.stroke();
+    } else if (member.className === 'Mage') {
+      // Wizard hat tip
+      ctx.fillStyle = '#8a74de';
+      ctx.beginPath();
+      ctx.moveTo(member.x, member.y - 26 + bob);
+      ctx.lineTo(member.x - 7, member.y - 15 + bob);
+      ctx.lineTo(member.x + 7, member.y - 15 + bob);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#d7f6ff';
+      ctx.fillRect(member.x - 1, member.y - 23 + bob, 2, 3);
+    } else if (member.className === 'Ranger') {
+      // Feather cap accent
+      ctx.fillStyle = '#a7e57f';
+      ctx.beginPath();
+      ctx.ellipse(member.x + 8, member.y - 17 + bob, 2, 6, 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Face details
     ctx.fillStyle = '#2b315d';
     ctx.fillRect(member.x - 5, member.y - 14 + bob, 3, 3);
     ctx.fillRect(member.x + 2, member.y - 14 + bob, 3, 3);
@@ -275,6 +350,7 @@ class EmberFallGame {
     ctx.fillRect(member.x - 8, member.y - 9 + bob, 2, 2);
     ctx.fillRect(member.x + 6, member.y - 9 + bob, 2, 2);
 
+    // Lead indicator
     if (isLead) {
       ctx.strokeStyle = '#ffe067';
       ctx.lineWidth = 3;
