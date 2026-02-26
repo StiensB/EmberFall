@@ -6,20 +6,10 @@ import { QuestSystem } from './questSystem.js';
 import { InventorySystem } from './inventory.js';
 import { UIController } from './ui.js';
 import { AudioSystem } from './audio.js';
+import { ProgressionSystem } from './progression.js';
+import { DungeonSystem } from './dungeon.js';
 import { loadState, saveState } from './saveSystem.js';
 import { HDRenderer } from './renderer.js';
-
-const SHOP_STOCK = {
-  smith: [
-    { id: 'bronze_edge', name: 'Bronze Edge', type: 'equipment', cost: 55, slot: 'weapon', stats: { attack: 8 } },
-    { id: 'oak_guard', name: 'Oak Guard', type: 'equipment', cost: 60, slot: 'armor', stats: { maxHp: 28, defense: 5 } },
-    { id: 'ember_charm', name: 'Ember Charm', type: 'equipment', cost: 50, slot: 'charm', stats: { maxMana: 24, attack: 2 } },
-  ],
-  chef: [
-    { id: 'berry_broth', name: 'Berry Broth', type: 'food', cost: 18, heal: 45 },
-    { id: 'hearty_stew', name: 'Hearty Stew', type: 'food', cost: 40, heal: 95 },
-  ],
-};
 
 class EmberFallGame {
   constructor() {
@@ -30,7 +20,9 @@ class EmberFallGame {
     this.party = new Party({ x: 760, y: 1320 });
     this.inventory = new InventorySystem();
     this.questSystem = new QuestSystem();
-    this.combat = new CombatSystem(this.party, this.world, this.inventory, this.questSystem);
+    this.progression = new ProgressionSystem();
+    this.dungeon = new DungeonSystem();
+    this.combat = new CombatSystem(this.party, this.world, this.inventory, this.questSystem, this.progression);
     this.ui = new UIController(this);
     this.audio = new AudioSystem();
 
@@ -39,7 +31,6 @@ class EmberFallGame {
     this.enemies = [];
     this.messages = ['Tap canvas once to enable tiny synth sounds.'];
     this.dialogueQueue = [];
-    this.activeShop = null;
     this.lastTime = performance.now();
     this.elapsed = 0;
     this.input = { moveX: 0, moveY: 0 };
@@ -48,6 +39,7 @@ class EmberFallGame {
 
     this.installControls();
     this.loadGame();
+    this.rebuildStats();
     this.spawnEnemies();
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
@@ -97,45 +89,35 @@ class EmberFallGame {
     base.addEventListener('pointerup', resetStick);
     base.addEventListener('pointercancel', resetStick);
 
-    document.querySelectorAll('.skill-btn').forEach((btn) => {
-      btn.addEventListener('click', () => this.onSkillButton(btn.dataset.skill));
-    });
-
+    document.querySelectorAll('.skill-btn').forEach((btn) => btn.addEventListener('click', () => this.onSkillButton(btn.dataset.skill)));
     this.canvas.addEventListener('click', () => {
       this.audio.ensure();
       if (this.messages[0]?.includes('Tap canvas')) this.messages.shift();
     });
+  }
 
-    window.addEventListener('keydown', (ev) => {
-      if (ev.key === ' ') this.onSkillButton('attack');
-      if (ev.key === '1') this.onSkillButton('skill1');
-      if (ev.key === '2') this.onSkillButton('skill2');
-      if (ev.key.toLowerCase() === 'q') this.onSkillButton('switch');
-      if (ev.key.toLowerCase() === 'e') this.tryTalk();
+  rebuildStats() {
+    this.party.members.forEach((member) => {
+      member.applyEquipmentBonuses();
+      this.progression.applyTalents(member);
+      member.hp = Math.min(member.hp, member.stats.maxHp);
+      member.mana = Math.min(member.mana, member.stats.maxMana);
     });
   }
 
   onSkillButton(skill) {
-    if (skill === 'menu') {
-      this.ui.toggleMenu();
-      return;
-    }
+    if (skill === 'menu') return this.ui.toggleMenu();
     if (skill === 'switch') {
       this.party.switchActive();
-      this.messages.unshift(`Active: ${this.party.active.name}`);
       return;
     }
-    if (skill === 'attack') {
-      this.combat.tryAttack(this.enemies);
-      this.audio.playHit();
-      return;
-    }
-    if (skill === 'skill1' || skill === 'skill2') {
-      this.combat.trySkill(skill, this.enemies, this.elapsed);
-      this.audio.playSkill();
-    }
+    if (skill === 'attack') return this.combat.tryAttack(this.enemies);
+    if (skill === 'skill1' || skill === 'skill2') this.combat.trySkill(skill, this.enemies, this.elapsed);
   }
 
+  startDungeon(regionId = 'meadow') {
+    const run = this.dungeon.createRun(regionId, this.progression.dungeonRank);
+    this.world.setDynamicDungeon(run.zone);
   tryTalk() {
     const lead = this.party.active;
     const npc = this.world.nearestNpc(lead.x, lead.y);
@@ -205,16 +187,10 @@ class EmberFallGame {
   spawnEnemies() {
     const zone = this.world.zone;
     this.enemies = [];
+    const modifiers = this.world.zoneId === 'dungeon' ? this.dungeon.currentRun?.modifiers || [] : [];
     for (const pack of zone.enemySpawns) {
       for (let i = 0; i < pack.count; i += 1) {
-        this.enemies.push(
-          new Enemy({
-            type: pack.type,
-            level: pack.level,
-            x: 120 + Math.random() * (zone.width - 240),
-            y: 120 + Math.random() * (zone.height - 240),
-          }),
-        );
+        this.enemies.push(new Enemy({ type: pack.type, level: pack.level, modifiers, x: 120 + Math.random() * (zone.width - 240), y: 120 + Math.random() * (zone.height - 240) }));
       }
     }
   }
@@ -222,14 +198,13 @@ class EmberFallGame {
   moveLeader(dt) {
     const lead = this.party.active;
     if (lead.hp <= 0) return;
-
     const speedBoost = lead.speedBoostTimer && this.elapsed < lead.speedBoostTimer ? 1.5 : 1;
     const nx = this.input.moveX;
     const ny = this.input.moveY;
     const len = Math.hypot(nx, ny);
     if (len > 0.02) {
       lead.direction = { x: nx / len, y: ny / len };
-      const speed = lead.stats.speed * (lead.className === 'Ranger' ? 1.08 : 1) * speedBoost;
+      const speed = lead.stats.speed * speedBoost;
       const next = this.world.resolveCollision(lead.x + (nx / len) * speed * dt, lead.y + (ny / len) * speed * dt, lead.radius);
       lead.x = next.x;
       lead.y = next.y;
@@ -240,91 +215,49 @@ class EmberFallGame {
       if (exit.requiresArea && !this.questSystem.isAreaUnlocked(exit.requiresArea)) {
         this.messages.unshift(exit.lockedMessage || 'This path is locked.');
       } else {
+        if (exit.to === 'dungeon') this.startDungeon('meadow');
         this.world.changeZone(exit.to);
-        this.activeShop = null;
         this.party.members.forEach((m) => {
           m.x = exit.spawn.x + Math.random() * 20;
           m.y = exit.spawn.y + Math.random() * 20;
         });
         this.spawnEnemies();
-        this.messages.unshift(`Entered ${this.world.zone.name}`);
       }
     }
   }
 
-  updateEnemies(dt) {
-    const target = this.party.active;
-    this.enemies.forEach((enemy) => {
-      if (enemy.updateAI(dt, target, this.world)) this.combat.enemyAttack(enemy, target);
-    });
-    this.enemies = this.combat.processDeaths(this.enemies, (xp) => this.addXp(xp));
-  }
-
-  updateManaRegen(dt) {
-    const inTown = this.world.zoneId === 'town';
-    this.party.members.forEach((m) => {
-      m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
-      // HP recovery is only from town rest or purchased food.
-      if (inTown && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
-    });
-  }
-
-  getShopStock() {
-    if (!this.activeShop) return [];
-    if (!this.questSystem.isShopUnlocked(this.activeShop)) return [];
-    return SHOP_STOCK[this.activeShop] || [];
-  }
-
-  buyFromShop(itemId) {
-    const stock = this.getShopStock();
-    const item = stock.find((entry) => entry.id === itemId);
-    if (!item) return;
-    if (this.inventory.gold < item.cost) {
-      this.messages.unshift('Not enough gold.');
-      return;
-    }
-
-    this.inventory.gold -= item.cost;
-    if (item.type === 'equipment') {
-      this.inventory.equipmentBag.push({
-        id: item.id,
-        name: item.name,
-        slot: item.slot,
-        stats: { ...item.stats },
-      });
-      this.messages.unshift(`Bought ${item.name}. Check your bag to equip it.`);
-      return;
-    }
-
-    if (item.type === 'food') {
-      this.party.members.forEach((member) => {
-        if (member.hp > 0) member.hp = Math.min(member.stats.maxHp, member.hp + item.heal);
-      });
-      this.messages.unshift(`Ate ${item.name}. Party healed for ${item.heal} HP.`);
+  addXp(value) {
+    this.xp += value;
+    while (this.xp >= this.levelXp) {
+      this.xp -= this.levelXp;
+      this.levelXp = Math.round(this.levelXp * 1.2);
+      this.party.members.forEach((m) => m.gainLevel());
+      this.progression.grantTalentPoint();
+      this.rebuildStats();
+      this.messages.unshift('Party leveled up! Talent point earned.');
     }
   }
 
   update(dt) {
     this.elapsed += dt;
-    if (this.party.isWiped()) {
-      this.messages = ['Party wiped! Returning to town fountain.'];
-      this.world.changeZone('town');
-      this.party.members.forEach((m) => {
-        m.x = 750;
-        m.y = 1300;
-        m.hp = m.stats.maxHp;
-        m.mana = m.stats.maxMana;
-      });
-      this.spawnEnemies();
-      return;
-    }
-
     this.moveLeader(dt);
     this.party.updateFollow(dt);
-    this.updateEnemies(dt);
-    this.updateManaRegen(dt);
+    this.enemies.forEach((enemy) => {
+      if (enemy.updateAI(dt, this.party.active, this.world)) this.combat.enemyAttack(enemy, this.party.active);
+    });
+    this.enemies = this.combat.processDeaths(this.enemies, (xp) => this.addXp(xp));
     this.combat.updateParticles(dt);
 
+    if (!this.enemies.length && this.world.zoneId === 'dungeon' && this.dungeon.currentRun && !this.dungeon.currentRun.completed) {
+      this.dungeon.completeRun();
+      this.inventory.gold += 60 + this.progression.dungeonRank * 15;
+      this.messages.unshift('Dungeon cleared! Return to town and scale up the guild hall.');
+    }
+
+    this.party.members.forEach((m) => {
+      m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
+      if (this.world.zoneId === 'town' && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * (0.8 + this.progression.town.apothecary * 0.25));
+    });
     if (Math.floor(this.elapsed * 2) % 2 === 0) this.ui.renderHud();
   }
 
@@ -566,27 +499,16 @@ class EmberFallGame {
       ctx.fillRect(npc.x - 1, markerY - 8, 2, 16);
     }
 
-    // name plate with rounded card style
-    const nameW = Math.max(48, npc.name.length * 7);
-    const nameX = npc.x - nameW / 2;
-    const nameY = npc.y - 45;
-    ctx.fillStyle = 'rgba(20, 26, 50, 0.78)';
-    ctx.beginPath();
-    ctx.roundRect(nameX, nameY, nameW, 16, 6);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(167, 202, 255, 0.85)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(nameX, nameY, nameW, 16, 6);
-    ctx.stroke();
-    ctx.fillStyle = '#f6fbff';
-    ctx.font = '11px sans-serif';
-    ctx.fillText(npc.name, nameX + 5, nameY + 11.5);
+    this.ui.renderHud();
   }
 
   draw() {
     const { sceneCtx: ctx, scale } = this.renderer.beginFrame();
     const lead = this.party.active;
+    const { width, height } = this.canvas;
+    this.world.camera.x = Math.max(0, Math.min(this.world.zone.width - width, lead.x - width / 2));
+    this.world.camera.y = Math.max(0, Math.min(this.world.zone.height - height, lead.y - height / 2));
+
     const width = this.renderer.sceneCanvas.width;
     const height = this.renderer.sceneCanvas.height;
 
@@ -602,10 +524,10 @@ class EmberFallGame {
     ctx.save();
     ctx.scale(scale * this.renderZoom, scale * this.renderZoom);
     ctx.translate(-this.world.camera.x, -this.world.camera.y);
-
     this.world.draw(ctx);
 
     this.world.zone.npcs.forEach((npc) => {
+      ctx.fillStyle = npc.color;
       this.drawNpc(npc);
       this.renderer.drawNormalDisc(npc.x * scale, npc.y * scale, 24 * scale, 0.85);
     });
@@ -613,42 +535,31 @@ class EmberFallGame {
     this.enemies.forEach((e) => {
       ctx.fillStyle = 'rgba(10, 12, 22, 0.35)';
       ctx.beginPath();
-      ctx.ellipse(e.x, e.y + e.radius + 5, e.radius * 0.8, 5, 0, 0, Math.PI * 2);
+      ctx.arc(npc.x, npc.y, 16, 0, Math.PI * 2);
       ctx.fill();
+    });
       this.renderer.drawNormalDisc(e.x * scale, e.y * scale, (e.radius + 8) * scale, 0.95);
 
-      const enemyGrad = ctx.createRadialGradient(e.x - e.radius * 0.3, e.y - e.radius * 0.35, 2, e.x, e.y, e.radius + 2);
-      enemyGrad.addColorStop(0, '#ffffff3d');
-      enemyGrad.addColorStop(0.32, e.color);
-      enemyGrad.addColorStop(1, '#15192f99');
-      ctx.fillStyle = enemyGrad;
+    this.enemies.forEach((e) => {
+      ctx.fillStyle = e.color;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(23, 28, 50, 0.7)';
-      ctx.lineWidth = 1.3;
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.arc(e.x - e.radius * 0.3, e.y - e.radius * 0.3, e.radius * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Face details for friendly/chibi readability
-      ctx.fillStyle = '#1d2244';
-      ctx.fillRect(e.x - 5, e.y - 3, 2, 2);
-      ctx.fillRect(e.x + 3, e.y - 3, 2, 2);
-      ctx.fillRect(e.x - 2, e.y + 2, 4, 2);
-      ctx.fillStyle = '#ffd7df';
-      ctx.fillRect(e.x - 7, e.y + 1, 2, 2);
-      ctx.fillRect(e.x + 5, e.y + 1, 2, 2);
-
       ctx.fillStyle = '#112';
-      const hpW = 34;
-      ctx.fillRect(e.x - hpW / 2, e.y - e.radius - 14, hpW, 4);
+      ctx.fillRect(e.x - 16, e.y - e.radius - 14, 32, 4);
       ctx.fillStyle = '#ff7b99';
-      ctx.fillRect(e.x - hpW / 2, e.y - e.radius - 14, hpW * (e.hp / e.maxHp), 4);
+      ctx.fillRect(e.x - 16, e.y - e.radius - 14, 32 * (e.hp / e.maxHp), 4);
     });
 
+    this.party.members.forEach((m, idx) => {
+      ctx.fillStyle = m.color;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 14, 0, Math.PI * 2);
+      ctx.fill();
+      if (idx === this.party.activeIndex) {
+        ctx.strokeStyle = '#ffe067';
+        ctx.strokeRect(m.x - 16, m.y - 16, 32, 32);
+      }
     this.party.members.forEach((m, idx) => this.drawCharacter(m, idx === this.party.activeIndex));
     this.party.members.forEach((m) => this.renderer.drawNormalDisc(m.x * scale, m.y * scale, 26 * scale, 1));
 
@@ -663,9 +574,12 @@ class EmberFallGame {
       ctx.fill();
       this.renderer.drawNormalDisc(p.x * scale, p.y * scale, (p.size + 2) * scale, p.glow);
     });
-    ctx.globalAlpha = 1;
 
     ctx.restore();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`${this.world.zone.name}`, 10, 16);
+    ctx.fillText(`XP ${this.xp}/${this.levelXp}`, 10, 30);
+    if (this.messages.length) ctx.fillText(this.messages[0], 10, 44);
 
     this.drawOverlay();
 
@@ -723,12 +637,11 @@ class EmberFallGame {
   saveGame() {
     saveState({
       zoneId: this.world.zoneId,
-      party: {
-        members: this.party.members,
-        activeIndex: this.party.activeIndex,
-      },
+      party: { members: this.party.members, activeIndex: this.party.activeIndex },
       inventory: this.inventory.serialize(),
       quests: this.questSystem.serialize(),
+      progression: this.progression.serialize(),
+      dungeon: this.dungeon.serialize(),
       xp: this.xp,
       levelXp: this.levelXp,
     });
@@ -738,22 +651,18 @@ class EmberFallGame {
   loadGame() {
     const state = loadState();
     if (!state) return;
-
     this.world.changeZone(state.zoneId || 'town');
     if (state.party?.members) {
-      state.party.members.forEach((saved, idx) => {
-        const m = this.party.members[idx];
-        if (!m) return;
-        Object.assign(m, saved);
-      });
+      state.party.members.forEach((saved, idx) => Object.assign(this.party.members[idx], saved));
       this.party.activeIndex = state.party.activeIndex || 0;
     }
-
     this.inventory.hydrate(state.inventory);
     this.questSystem.hydrate(state.quests);
+    this.progression.hydrate(state.progression);
+    this.dungeon.hydrate(state.dungeon);
+    if (this.dungeon.currentRun?.zone) this.world.setDynamicDungeon(this.dungeon.currentRun.zone);
     this.xp = state.xp || 0;
     this.levelXp = state.levelXp || 100;
-    this.messages.unshift('Loaded local save.');
   }
 
   resizeCanvas() {
@@ -765,4 +674,3 @@ class EmberFallGame {
 
 const game = new EmberFallGame();
 window.__emberfall = game;
-window.addEventListener('dblclick', () => game.tryTalk());

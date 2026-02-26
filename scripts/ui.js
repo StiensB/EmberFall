@@ -1,4 +1,5 @@
 import { QuestSystem } from './questSystem.js';
+import { TALENT_TREES, TOWN_UPGRADES } from './progression.js';
 
 export class UIController {
   constructor(game) {
@@ -23,8 +24,7 @@ export class UIController {
     this.elements.saveBtn.addEventListener('click', () => this.game.saveGame());
     this.elements.closeMenu.addEventListener('click', () => this.toggleMenu(false));
     this.elements.menuBtnTop?.addEventListener('click', () => this.toggleMenu());
-    this.elements.dialogueNext.addEventListener('click', () => this.game.advanceDialogue());
-
+    this.elements.dialogueNext.addEventListener('click', () => this.game.advanceDialogue?.());
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.menuTab = btn.dataset.tab;
@@ -41,109 +41,61 @@ export class UIController {
     if (shouldOpen) this.renderMenu();
   }
 
-  openShop(shopkeeperName) {
-    this.menuTab = 'shop';
-    this.toggleMenu(true);
-    this.game.messages.unshift(`${shopkeeperName}'s shop is open.`);
-  }
-
-  setDialogue(text, isOpen) {
-    this.elements.dialogueText.textContent = text;
-    this.elements.dialogueBox.classList.toggle('hidden', !isOpen);
-  }
-
   renderHud() {
-    const { party, inventory, questSystem } = this.game;
+    const { party, inventory, questSystem, progression, dungeon } = this.game;
     this.elements.partyBars.innerHTML = party.members
       .map((m, idx) => {
         const hpPct = (m.hp / m.stats.maxHp) * 100;
         const mpPct = (m.mana / m.stats.maxMana) * 100;
-        return `<article class="bar-card" style="outline:${idx === party.activeIndex ? '2px solid #ffbf5f' : 'none'}">
-          <div>${m.name} (${m.className}) Lv.${m.level}</div>
-          <div class="bar hp"><span style="width:${Math.max(0, hpPct)}%"></span></div>
-          <div class="bar mp"><span style="width:${Math.max(0, mpPct)}%"></span></div>
-        </article>`;
+        return `<article class="bar-card" style="outline:${idx === party.activeIndex ? '2px solid #ffbf5f' : 'none'}"><div>${m.name} Lv.${m.level}</div><div class="bar hp"><span style="width:${Math.max(0, hpPct)}%"></span></div><div class="bar mp"><span style="width:${Math.max(0, mpPct)}%"></span></div></article>`;
       })
       .join('');
 
     const lines = questSystem.trackerText().slice(0, 2).join('<br/>') || 'No active quests';
-    this.elements.questTracker.innerHTML = `<strong>Gold</strong>: ${inventory.gold}<br/><strong>Current Tasks</strong><br/>${lines}`;
+    const mods = dungeon.currentRun?.modifiers?.map((m) => m.name).join(', ') || 'None';
+    this.elements.questTracker.innerHTML = `<strong>Gold</strong>: ${inventory.gold}<br/><strong>Talent Pts</strong>: ${progression.talentPoints}<br/><strong>Dungeon Rank</strong>: ${progression.dungeonRank}<br/><strong>Modifiers</strong>: ${mods}<br/><strong>Tasks</strong><br/>${lines}`;
     if (!this.elements.menu.classList.contains('hidden')) this.renderMenu();
   }
 
   renderMenu() {
-    const { inventory, party, questSystem, world } = this.game;
+    const { inventory, party, questSystem, world, progression, dungeon } = this.game;
 
     if (this.menuTab === 'inventory') {
       const items = [...inventory.items.entries()].map(([name, count]) => `<li>${name} x${count}</li>`).join('') || '<li>No consumables yet.</li>';
       const equipment = inventory.equipmentBag
-        .map((e) => `<li>${e.name} <button data-equip="${e.id}" class="ui-btn">Equip to Active</button></li>`)
+        .map((e) => `<li><span style="color:${e.rarityColor || '#fff'}">${e.name} ${e.rarity ? `[${e.rarity}]` : ''}</span><br/><small>${Object.entries(e.stats).map(([k,v]) => `+${v} ${k}`).join(', ')} ${e.affixes?.length ? `| ${e.affixes.join(', ')}` : ''}</small><br/><button data-equip="${e.id}" class="ui-btn">Equip</button></li>`)
         .join('') || '<li>No gear found.</li>';
       this.elements.menuContent.innerHTML = `<h3>Bag</h3><ul>${items}</ul><h3>Gear</h3><ul>${equipment}</ul>`;
-      this.elements.menuContent.querySelectorAll('[data-equip]').forEach((btn) => {
-        btn.addEventListener('click', () => inventory.equip(party.active, btn.dataset.equip));
-      });
+      this.elements.menuContent.querySelectorAll('[data-equip]').forEach((btn) => btn.addEventListener('click', () => { inventory.equip(party.active, btn.dataset.equip); this.game.rebuildStats(); this.renderMenu(); }));
     }
 
     if (this.menuTab === 'characters') {
-      this.elements.menuContent.innerHTML = party.members
-        .map((m) => `<article><h3>${m.name} - ${m.className}</h3>
-          <p>${m.passive}</p>
-          <p>HP ${Math.round(m.hp)}/${m.stats.maxHp}, MP ${Math.round(m.mana)}/${m.stats.maxMana}</p>
-          <p>ATK ${m.stats.attack}, DEF ${m.stats.defense}, SPD ${m.stats.speed}</p>
-          <p>Skills: ${m.skills.join(', ')}</p></article>`)
+      const talents = TALENT_TREES[party.active.className]
+        .map((talent) => {
+          const rank = progression.talents[party.active.name]?.[talent.id] || 0;
+          return `<li><strong>${talent.name}</strong> ${rank}/${talent.maxRank}<br/><button class="ui-btn" data-talent="${talent.id}">Spend Point</button></li>`;
+        })
         .join('');
-
-      this.elements.menuContent.innerHTML += '<button id="deliverBtn" class="ui-btn">Deliver Spark Coil to Mimi</button>';
-      this.elements.menuContent.querySelector('#deliverBtn')?.addEventListener('click', () => {
-        if (!questSystem.deliveryDone) {
-          questSystem.completeDelivery();
-          this.game.messages.push('Delivery done! Return for reward.');
-        }
-      });
+      this.elements.menuContent.innerHTML = `<h3>${party.active.name} (${party.active.className})</h3><p>Talent Points: ${progression.talentPoints}</p><ul>${talents}</ul>`;
+      this.elements.menuContent.querySelectorAll('[data-talent]').forEach((btn) => btn.addEventListener('click', () => { progression.spendTalent(party.active, btn.dataset.talent); this.game.rebuildStats(); this.renderMenu(); }));
     }
 
     if (this.menuTab === 'quests') {
-      const active = [...questSystem.active.values()]
-        .map((state) => {
-          const q = QuestSystem.QUESTS[state.id];
-          return `<li><strong>${q.title}</strong> (${state.progress}/${q.count})<br/>${q.description}</li>`;
-        })
-        .join('') || '<li>No active quests.</li>';
+      const active = [...questSystem.active.values()].map((state) => {
+        const q = QuestSystem.QUESTS[state.id];
+        return `<li><strong>${q.title}</strong> (${state.progress}/${q.count})<br/>${q.description}</li>`;
+      }).join('') || '<li>No active quests.</li>';
       this.elements.menuContent.innerHTML = `<h3>Active Quests</h3><ul>${active}</ul>`;
     }
 
     if (this.menuTab === 'map') {
-      const cavernOpen = questSystem.isAreaUnlocked('cavern');
-      this.elements.menuContent.innerHTML = `<h3>Region</h3><p>${world.zone.name}</p><p>Use glowing rectangles for zone exits.</p><p>${cavernOpen ? 'Boss waits in Giggle Cavern.' : 'Giggle Cavern is sealed until the mayor grants clearance.'}</p>`;
-    }
-
-    if (this.menuTab === 'shop') {
-      const shopStock = this.game.getShopStock();
-      if (!shopStock.length) {
-        this.elements.menuContent.innerHTML = '<h3>Shop</h3><p>Complete NPC quest chains to unlock each town shop.</p>';
-        return;
-      }
-
-      const stockList = shopStock
-        .map((item) => {
-          if (item.type === 'equipment') {
-            const statText = Object.entries(item.stats)
-              .map(([stat, value]) => `+${value} ${stat}`)
-              .join(', ');
-            return `<li><strong>${item.name}</strong> (${item.cost}g)<br/><small>${statText}</small><br/><button class="ui-btn" data-buy="${item.id}">Buy</button></li>`;
-          }
-          return `<li><strong>${item.name}</strong> (${item.cost}g)<br/><small>Heals the full party for ${item.heal} HP.</small><br/><button class="ui-btn" data-buy="${item.id}">Buy</button></li>`;
-        })
-        .join('');
-
-      this.elements.menuContent.innerHTML = `<h3>Shop</h3><p>Gold: ${inventory.gold}</p><ul>${stockList}</ul>`;
-      this.elements.menuContent.querySelectorAll('[data-buy]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          this.game.buyFromShop(btn.dataset.buy);
-          this.renderMenu();
-        });
-      });
+      const upgrades = Object.values(TOWN_UPGRADES).map((upgrade) => {
+        const rank = progression.town[upgrade.id];
+        return `<li>${upgrade.name}: ${rank}/${upgrade.maxRank} <button class="ui-btn" data-upgrade="${upgrade.id}">Upgrade (${progression.getUpgradeCost(upgrade.id)}g)</button></li>`;
+      }).join('');
+      const modifiers = dungeon.currentRun?.modifiers?.map((m) => `<li>${m.name}: ${m.description}</li>`).join('') || '<li>No active dungeon run.</li>';
+      this.elements.menuContent.innerHTML = `<h3>Region: ${world.zone.name}</h3><p>Multi-region loop: Meadow, Caverns, Ruins + procedural dungeons.</p><h4>Town Upgrades</h4><ul>${upgrades}</ul><h4>Current Dungeon Modifiers</h4><ul>${modifiers}</ul>`;
+      this.elements.menuContent.querySelectorAll('[data-upgrade]').forEach((btn) => btn.addEventListener('click', () => { progression.buyTownUpgrade(btn.dataset.upgrade, inventory); if (btn.dataset.upgrade === 'guildhall' && progression.town.guildhall >= 2) questSystem.unlockedAreas.add('ruins'); this.renderMenu(); }));
     }
   }
 }

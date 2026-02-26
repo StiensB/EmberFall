@@ -14,49 +14,30 @@ export const WORLD_DATA = {
     blockers: [rect(220, 230, 200, 90), rect(720, 240, 260, 120), rect(1130, 320, 190, 170), rect(510, 830, 370, 140)],
     exits: [
       { x: 1470, y: 1450, w: 170, h: 170, to: 'meadow', spawn: { x: 180, y: 180 } },
-      {
-        x: 70,
-        y: 1300,
-        w: 160,
-        h: 160,
-        to: 'cavern',
-        spawn: { x: 1520, y: 250 },
-        requiresArea: 'cavern',
-        lockedMessage: 'The cavern gate is sealed. Mayor Puffle must approve access first.',
-      },
+      { x: 70, y: 1300, w: 160, h: 160, to: 'caverns', spawn: { x: 1520, y: 250 }, requiresArea: 'caverns', lockedMessage: 'The cavern gate is sealed. Mayor Puffle must approve access first.' },
+      { x: 1320, y: 80, w: 180, h: 120, to: 'ruins', spawn: { x: 260, y: 1380 }, requiresArea: 'ruins', lockedMessage: 'The ruins bridge is under repair. Upgrade the guild hall.' },
+      { x: 760, y: 20, w: 180, h: 120, to: 'dungeon', spawn: { x: 180, y: 180 } },
     ],
     npcs: [
-      {
-        id: 'mayor',
-        name: 'Mayor Puffle',
-        x: 900,
-        y: 610,
-        color: '#ffe189',
-        questId: 'mayor_clearance',
-        lines: ['Keep the town safe, hero-ish people!', 'Prove yourself and I\'ll unseal the cavern gate.'],
-      },
+      { id: 'mayor', name: 'Mayor Puffle', x: 900, y: 610, color: '#ffe189', questId: 'mayor_clearance', lines: ['Keep the town safe, hero-ish people!', 'Prove yourself and I\'ll unseal the cavern gate.'] },
       { id: 'chef', name: 'Chef Truffle', x: 390, y: 640, color: '#ffba8f', questId: 'chef_collect', lines: ['I need Slime Gel for jelly stew!', 'Bring me 3 and I\'ll open my kitchen shop.'] },
       { id: 'smith', name: 'Smith Bop', x: 1210, y: 900, color: '#cab5ff', questId: 'smith_delivery', lines: ['Could you deliver this Spark Coil to Mimi?', 'Do that and I\'ll open my forge stock.'] },
     ],
     enemySpawns: [],
   },
   meadow: {
-    name: 'Sunny Meadow Dungeon',
+    name: 'Sunny Meadow Frontier',
     width: 2000,
     height: 1800,
     colorA: '#8ee8a5',
     colorB: '#60c9ff',
     blockers: [rect(540, 420, 270, 220), rect(1080, 650, 230, 280), rect(280, 980, 340, 150), rect(1330, 1230, 310, 130), rect(1480, 420, 220, 240)],
     exits: [{ x: 10, y: 10, w: 120, h: 120, to: 'town', spawn: { x: 1370, y: 1380 } }],
-    npcs: [{ id: 'scout', name: 'Scout Nib', x: 300, y: 220, color: '#ffd4f0', lines: ['Be careful! Slimes bounce emotionally.'] }],
-    enemySpawns: [
-      { type: 'slime', count: 7, level: 1 },
-      { type: 'bat', count: 4, level: 2 },
-      { type: 'mushroom', count: 4, level: 2 },
-    ],
+    npcs: [{ id: 'scout', name: 'Scout Nib', x: 300, y: 220, color: '#ffd4f0', lines: ['The frontier has hidden cellar rifts. They change each run.'] }],
+    enemySpawns: [{ type: 'slime', count: 7, level: 1 }, { type: 'bat', count: 4, level: 2 }, { type: 'mushroom', count: 4, level: 2 }],
   },
-  cavern: {
-    name: 'Giggle Cavern',
+  caverns: {
+    name: 'Giggle Caverns',
     width: 2100,
     height: 1800,
     colorA: '#5f7dff',
@@ -64,11 +45,18 @@ export const WORLD_DATA = {
     blockers: [rect(380, 400, 240, 260), rect(710, 980, 420, 140), rect(1190, 350, 300, 170), rect(1520, 900, 280, 230)],
     exits: [{ x: 1880, y: 40, w: 150, h: 150, to: 'town', spawn: { x: 200, y: 1340 } }],
     npcs: [],
-    enemySpawns: [
-      { type: 'bat', count: 7, level: 3 },
-      { type: 'mushroom', count: 6, level: 3 },
-      { type: 'boss', count: 1, level: 4 },
-    ],
+    enemySpawns: [{ type: 'bat', count: 7, level: 3 }, { type: 'mushroom', count: 6, level: 3 }, { type: 'wraith', count: 4, level: 4 }, { type: 'boss', count: 1, level: 4 }],
+  },
+  ruins: {
+    name: 'Whispering Ruins',
+    width: 2200,
+    height: 1800,
+    colorA: '#87d4c7',
+    colorB: '#8bb4ff',
+    blockers: [rect(500, 260, 330, 140), rect(980, 520, 180, 330), rect(1340, 340, 260, 210), rect(260, 1000, 290, 230), rect(1480, 980, 420, 160)],
+    exits: [{ x: 20, y: 1650, w: 160, h: 120, to: 'town', spawn: { x: 1300, y: 200 } }],
+    npcs: [],
+    enemySpawns: [{ type: 'slime', count: 4, level: 4 }, { type: 'sentinel', count: 7, level: 5 }, { type: 'wraith', count: 6, level: 5 }, { type: 'boss', count: 1, level: 6 }],
   },
 };
 
@@ -76,10 +64,16 @@ export class World {
   constructor() {
     this.zoneId = 'town';
     this.camera = { x: 0, y: 0 };
+    this.dynamicDungeon = null;
   }
 
   get zone() {
+    if (this.zoneId === 'dungeon' && this.dynamicDungeon) return this.dynamicDungeon;
     return WORLD_DATA[this.zoneId];
+  }
+
+  setDynamicDungeon(zone) {
+    this.dynamicDungeon = zone;
   }
 
   changeZone(id) {
@@ -162,13 +156,11 @@ export class World {
     for (let i = 0; i < 75; i += 1) {
       const px = ((i * 173) % zone.width) + 12;
       const py = ((i * 223) % zone.height) + 12;
-      const hue = zone.name.includes('Cavern') ? '#9c8dff' : '#8fe39a';
+      const hue = zone.name.includes('Cavern') || zone.name.includes('Depth') ? '#9c8dff' : '#8fe39a';
       ctx.fillStyle = hue;
       ctx.beginPath();
       ctx.arc(px, py, 6 + (i % 4), 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(px - 1, py - 2, 2, 4);
     }
 
     ctx.fillStyle = '#4e6485';
@@ -176,8 +168,6 @@ export class World {
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.fillStyle = '#2d3f58';
       ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, b.h - 16);
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillRect(b.x + 10, b.y + 10, b.w - 20, 8);
       ctx.fillStyle = '#4e6485';
     });
 

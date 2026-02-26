@@ -1,9 +1,10 @@
 export class CombatSystem {
-  constructor(party, world, inventory, questSystem) {
+  constructor(party, world, inventory, questSystem, progression) {
     this.party = party;
     this.world = world;
     this.inventory = inventory;
     this.questSystem = questSystem;
+    this.progression = progression;
     this.particles = [];
     this.comboTimer = 0;
     this.comboCount = 0;
@@ -31,6 +32,8 @@ export class CombatSystem {
     const hit = enemies.filter((e) => Math.hypot(e.x - actor.x, e.y - actor.y) < range);
     hit.forEach((enemy) => {
       enemy.hp -= this.calcDamage(actor, enemy, powerScale);
+      if (actor.className === 'Mage') enemy.addStatus('burn', 2.8, { dps: 8 });
+      if (actor.className === 'Ranger') enemy.addStatus('slow', 2.5);
       this.spawnParticles(enemy.x, enemy.y, '#ffffff', 8);
     });
 
@@ -47,7 +50,10 @@ export class CombatSystem {
         actor.mana -= 14;
         actor.cooldowns.skill1 = 3.2;
         enemies.forEach((e) => {
-          if (Math.hypot(e.x - actor.x, e.y - actor.y) < 80) e.hp -= this.calcDamage(actor, e, 1.8);
+          if (Math.hypot(e.x - actor.x, e.y - actor.y) < 80) {
+            e.hp -= this.calcDamage(actor, e, 1.8);
+            e.addStatus('slow', 2);
+          }
         });
         this.spawnParticles(actor.x, actor.y, '#ffd376', 24);
       }
@@ -55,13 +61,19 @@ export class CombatSystem {
         actor.mana -= 18;
         actor.cooldowns.skill1 = 4.2;
         const target = enemies[0];
-        if (target) target.hp -= this.calcDamage(actor, target, 2.4);
+        if (target) {
+          target.hp -= this.calcDamage(actor, target, 2.4);
+          target.addStatus('burn', 4, { dps: 11 });
+        }
         this.spawnParticles(actor.x + 20, actor.y - 8, '#b6d0ff', 18);
       }
       if (actor.className === 'Ranger' && actor.mana >= 12) {
         actor.mana -= 12;
         actor.cooldowns.skill1 = 3.4;
-        enemies.slice(0, 3).forEach((e) => (e.hp -= this.calcDamage(actor, e, 1.2)));
+        enemies.slice(0, 3).forEach((e) => {
+          e.hp -= this.calcDamage(actor, e, 1.2);
+          e.addStatus('bleed', 3, { dps: 5 });
+        });
         this.spawnParticles(actor.x, actor.y, '#a9ffba', 16);
       }
     }
@@ -76,7 +88,10 @@ export class CombatSystem {
         actor.mana -= 20;
         actor.cooldowns.skill2 = 5.8;
         enemies.forEach((e) => {
-          if (Math.hypot(e.x - actor.x, e.y - actor.y) < 120) e.hp -= this.calcDamage(actor, e, 1.5);
+          if (Math.hypot(e.x - actor.x, e.y - actor.y) < 120) {
+            e.hp -= this.calcDamage(actor, e, 1.5);
+            e.addStatus('burn', 4.5, { dps: 9 });
+          }
         });
       }
       if (actor.className === 'Ranger' && actor.mana >= 18) {
@@ -88,12 +103,26 @@ export class CombatSystem {
   }
 
   enemyAttack(enemy, target) {
-    enemy.cooldown = 1.2;
+    enemy.cooldown = enemy.type === 'boss' ? 0.75 : 1.2;
     const base = Math.max(1, Math.round(enemy.attack * (0.9 + Math.random() * 0.25)));
     const defense = target.stats.defense;
     const passiveMit = target.className === 'Warrior' ? 0.9 : 1;
     const damage = Math.max(1, Math.round((base - defense * 0.35) * passiveMit * 1.18));
     target.hp -= damage;
+
+    if (enemy.modifiers.some((m) => m.id === 'plague') && Math.random() < 0.22) {
+      target.statuses = target.statuses || [];
+      target.statuses.push({ id: 'poison', duration: 4, dps: 4 + enemy.level * 0.5 });
+    }
+
+    if (enemy.type === 'boss' && enemy.phase === 2 && Math.random() < 0.25) {
+      this.party.members.forEach((member) => {
+        if (member.hp > 0 && Math.hypot(member.x - enemy.x, member.y - enemy.y) < 170) {
+          member.hp -= Math.max(1, Math.round(enemy.attack * 0.35));
+        }
+      });
+    }
+
     this.spawnParticles(target.x, target.y, '#ff8ea8', 10);
   }
 
@@ -103,7 +132,7 @@ export class CombatSystem {
       if (enemy.hp > 0) alive.push(enemy);
       else {
         const gold = enemy.rollGold();
-        this.inventory.addLoot(enemy.drop, gold);
+        this.inventory.addLoot(enemy.drop, gold, enemy.level);
         this.questSystem.onEnemyDefeated(enemy.type);
         this.questSystem.onItemCollected(enemy.drop);
         awardXp(enemy.xp);

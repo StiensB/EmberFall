@@ -39,6 +39,7 @@ export class PartyMember {
     this.passive = cls.passive;
     this.skills = [...cls.skills];
     this.color = cls.color;
+    this.statuses = [];
 
     this.equipment = { weapon: null, armor: null, charm: null };
   }
@@ -47,17 +48,21 @@ export class PartyMember {
     for (const key of Object.keys(this.cooldowns)) {
       this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
     }
+
+    this.statuses = this.statuses.filter((status) => {
+      status.duration -= dt;
+      if (status.id === 'poison') this.hp -= dt * status.dps;
+      return status.duration > 0;
+    });
   }
 
   gainLevel() {
     this.level += 1;
-    this.stats.maxHp += 16;
-    this.stats.maxMana += 8;
-    this.stats.attack += 3;
-    this.stats.defense += 2;
-    this.stats.speed += 2;
-    this.hp = this.stats.maxHp;
-    this.mana = this.stats.maxMana;
+    this.baseStats.maxHp += 16;
+    this.baseStats.maxMana += 8;
+    this.baseStats.attack += 3;
+    this.baseStats.defense += 2;
+    this.baseStats.speed += 2;
   }
 
   applyEquipmentBonuses() {
