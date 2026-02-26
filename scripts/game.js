@@ -7,6 +7,7 @@ import { InventorySystem } from './inventory.js';
 import { UIController } from './ui.js';
 import { AudioSystem } from './audio.js';
 import { loadState, saveState } from './saveSystem.js';
+import { HDRenderer } from './renderer.js';
 
 const SHOP_STOCK = {
   smith: [
@@ -23,7 +24,8 @@ const SHOP_STOCK = {
 class EmberFallGame {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
-    this.ctx = this.canvas.getContext('2d');
+    this.renderer = new HDRenderer(this.canvas);
+    this.ctx = null;
     this.world = new World();
     this.party = new Party({ x: 760, y: 1320 });
     this.inventory = new InventorySystem();
@@ -41,6 +43,8 @@ class EmberFallGame {
     this.lastTime = performance.now();
     this.elapsed = 0;
     this.input = { moveX: 0, moveY: 0 };
+    this.renderCamera = { x: 0, y: 0 };
+    this.renderZoom = 1;
 
     this.installControls();
     this.loadGame();
@@ -167,12 +171,12 @@ class EmberFallGame {
         lines.push('Hungry? Grab some healing food from the shop ledger.');
       } else {
         this.activeShop = null;
-        lines.push('Bring me 3 Slime Gel and I'll open the kitchen shop.');
+        lines.push('Bring me 3 Slime Gel and I\'ll open the kitchen shop.');
       }
     }
 
     if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('cavern')) {
-      lines.push('Chef then smith, then me. That's the official heroic paperwork route.');
+      lines.push('Chef then smith, then me. That\'s the official heroic paperwork route.');
     }
 
     this.dialogueQueue = lines;
@@ -325,7 +329,7 @@ class EmberFallGame {
   }
 
   drawCharacter(member, isLead) {
-    const ctx = this.ctx;
+    const ctx = this.renderer.sceneCtx;
     const bob = Math.sin(this.elapsed * 8 + member.x * 0.01) * 1.8;
 
     // Class-themed palette accents for readability
@@ -477,7 +481,7 @@ class EmberFallGame {
   }
 
   drawNpc(npc) {
-    const ctx = this.ctx;
+    const ctx = this.renderer.sceneCtx;
     const bob = Math.sin(this.elapsed * 5 + npc.x * 0.02) * 1.5;
 
     // soft ground shadow with slight glow
@@ -581,20 +585,29 @@ class EmberFallGame {
   }
 
   draw() {
-    const ctx = this.ctx;
+    const { sceneCtx: ctx, scale } = this.renderer.beginFrame();
     const lead = this.party.active;
-    const { width, height } = this.canvas;
+    const width = this.renderer.sceneCanvas.width;
+    const height = this.renderer.sceneCanvas.height;
 
-    this.world.camera.x = Math.max(0, Math.min(this.world.zone.width - width, lead.x - width / 2));
-    this.world.camera.y = Math.max(0, Math.min(this.world.zone.height - height, lead.y - height / 2));
+    const targetZoom = this.combat.comboTimer > 0.01 ? 1.06 : 1;
+    this.renderZoom += (targetZoom - this.renderZoom) * 0.12;
 
+    const targetCamX = Math.max(0, Math.min(this.world.zone.width - width / scale, lead.x - width / (2 * scale)));
+    const targetCamY = Math.max(0, Math.min(this.world.zone.height - height / scale, lead.y - height / (2 * scale)));
+    this.renderCamera.x += (targetCamX - this.renderCamera.x) * 0.12;
+    this.renderCamera.y += (targetCamY - this.renderCamera.y) * 0.12;
+    this.world.camera.x = this.renderCamera.x;
+    this.world.camera.y = this.renderCamera.y;
     ctx.save();
+    ctx.scale(scale * this.renderZoom, scale * this.renderZoom);
     ctx.translate(-this.world.camera.x, -this.world.camera.y);
 
     this.world.draw(ctx);
 
     this.world.zone.npcs.forEach((npc) => {
       this.drawNpc(npc);
+      this.renderer.drawNormalDisc(npc.x * scale, npc.y * scale, 24 * scale, 0.85);
     });
 
     this.enemies.forEach((e) => {
@@ -602,6 +615,7 @@ class EmberFallGame {
       ctx.beginPath();
       ctx.ellipse(e.x, e.y + e.radius + 5, e.radius * 0.8, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+      this.renderer.drawNormalDisc(e.x * scale, e.y * scale, (e.radius + 8) * scale, 0.95);
 
       const enemyGrad = ctx.createRadialGradient(e.x - e.radius * 0.3, e.y - e.radius * 0.35, 2, e.x, e.y, e.radius + 2);
       enemyGrad.addColorStop(0, '#ffffff3d');
@@ -636,49 +650,65 @@ class EmberFallGame {
     });
 
     this.party.members.forEach((m, idx) => this.drawCharacter(m, idx === this.party.activeIndex));
+    this.party.members.forEach((m) => this.renderer.drawNormalDisc(m.x * scale, m.y * scale, 26 * scale, 1));
 
     this.combat.particles.forEach((p) => {
       ctx.globalAlpha = Math.max(0, p.life);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x, p.y, 3, 3);
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+      grad.addColorStop(0, p.color);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+      ctx.fill();
+      this.renderer.drawNormalDisc(p.x * scale, p.y * scale, (p.size + 2) * scale, p.glow);
     });
     ctx.globalAlpha = 1;
 
     ctx.restore();
 
     this.drawOverlay();
+
+    this.renderer.compose({
+      camera: this.world.camera,
+      time: this.elapsed,
+      combatBoost: Math.min(1, this.combat.comboCount / 8),
+      zoom: this.renderZoom,
+    });
   }
 
   drawOverlay() {
-    const ctx = this.ctx;
-    const minimapX = this.canvas.width - 136;
-    const minimapY = this.canvas.height - 248;
+    const ctx = this.renderer.sceneCtx;
+    const screenW = this.renderer.sceneCanvas.width;
+    const screenH = this.renderer.sceneCanvas.height;
+    const minimapX = screenW - 272;
+    const minimapY = screenH - 496;
 
     ctx.fillStyle = 'rgba(18,20,32,0.6)';
-    ctx.fillRect(minimapX, minimapY, 128, 112);
+    ctx.fillRect(minimapX, minimapY, 256, 224);
     ctx.fillStyle = '#fff';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('Minimap', minimapX + 4, minimapY + 16);
-    const scaleX = 116 / this.world.zone.width;
-    const scaleY = 86 / this.world.zone.height;
-    const mm = ctx.createLinearGradient(minimapX + 4, minimapY + 22, minimapX + 120, minimapY + 108);
+    ctx.font = '24px sans-serif';
+    ctx.fillText('Minimap', minimapX + 8, minimapY + 32);
+    const scaleX = 232 / this.world.zone.width;
+    const scaleY = 172 / this.world.zone.height;
+    const mm = ctx.createLinearGradient(minimapX + 8, minimapY + 44, minimapX + 240, minimapY + 216);
     mm.addColorStop(0, '#a5dcff');
     mm.addColorStop(1, '#79b7ff');
     ctx.fillStyle = mm;
-    ctx.fillRect(minimapX + 4, minimapY + 22, 116, 86);
+    ctx.fillRect(minimapX + 8, minimapY + 44, 232, 172);
     ctx.fillStyle = '#ffea7b';
-    ctx.fillRect(minimapX + 4 + this.party.active.x * scaleX - 2, minimapY + 22 + this.party.active.y * scaleY - 2, 4, 4);
+    ctx.fillRect(minimapX + 8 + this.party.active.x * scaleX - 4, minimapY + 44 + this.party.active.y * scaleY - 4, 8, 8);
 
     ctx.fillStyle = '#fff';
-    ctx.fillText(`${this.world.zone.name}`, 12, 20);
-    ctx.fillText(`XP ${this.xp}/${this.levelXp}`, 12, 36);
-    ctx.fillText(`Combo ${this.combat.comboCount}`, 12, 52);
+    ctx.fillText(`${this.world.zone.name}`, 24, 40);
+    ctx.fillText(`XP ${this.xp}/${this.levelXp}`, 24, 72);
+    ctx.fillText(`Combo ${this.combat.comboCount}`, 24, 104);
 
     if (this.messages.length) {
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(90, 8, this.canvas.width - 98, 24);
+      ctx.fillRect(180, 16, screenW - 196, 48);
       ctx.fillStyle = '#fff';
-      ctx.fillText(this.messages[0], 96, 24);
+      ctx.fillText(this.messages[0], 192, 48);
     }
   }
 
@@ -727,12 +757,9 @@ class EmberFallGame {
   }
 
   resizeCanvas() {
-    const ratio = window.devicePixelRatio || 1;
     const targetW = this.canvas.clientWidth;
     const targetH = this.canvas.clientHeight;
-    this.canvas.width = Math.floor(targetW * ratio);
-    this.canvas.height = Math.floor(targetH * ratio);
-    this.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    this.renderer.resize(targetW, targetH);
   }
 }
 

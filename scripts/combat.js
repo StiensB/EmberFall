@@ -117,10 +117,12 @@ export class CombatSystem {
       this.particles.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 140,
-        vy: (Math.random() - 0.5) * 140,
-        life: 0.4 + Math.random() * 0.4,
+        vx: (Math.random() - 0.5) * 160,
+        vy: (Math.random() - 0.6) * 170,
+        life: 0.45 + Math.random() * 0.55,
         color,
+        size: 2 + Math.random() * 4,
+        glow: 0.4 + Math.random() * 0.6,
       });
     }
   }
@@ -134,6 +136,7 @@ export class CombatSystem {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.vy += 220 * dt;
+      p.size = Math.max(0.8, p.size * (1 - dt * 0.9));
       return p.life > 0;
     });
   }
