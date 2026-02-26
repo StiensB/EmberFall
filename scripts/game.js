@@ -218,7 +218,7 @@ class EmberFallGame {
       }
     }
 
-    if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('cavern')) {
+    if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('caverns')) {
       lines.push('Chef then smith, then me. That\'s the official heroic paperwork route.');
     }
 
@@ -267,7 +267,10 @@ class EmberFallGame {
         this.messages.unshift(exit.lockedMessage || 'This path is locked.');
       } else {
         if (exit.to === 'dungeon') this.startDungeon('meadow');
-        this.world.changeZone(exit.to);
+        if (!this.world.changeZone(exit.to)) {
+          this.messages.unshift('That route is unstable right now. Try another exit.');
+          return;
+        }
         this.party.members.forEach((m) => {
           m.x = exit.spawn.x + Math.random() * 20;
           m.y = exit.spawn.y + Math.random() * 20;
