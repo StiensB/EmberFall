@@ -21,10 +21,16 @@ export class CombatSystem {
     if (actor.cooldowns.attack > 0 || actor.hp <= 0) return;
     actor.cooldowns.attack = 0.42;
 
-    const range = 66;
+    const attackProfile = {
+      Warrior: { range: 66, powerScale: 1.2 },
+      Mage: { range: 150, powerScale: 0.92 },
+      Ranger: { range: 180, powerScale: 0.95 },
+    }[actor.className] || { range: 66, powerScale: 1 };
+
+    const { range, powerScale } = attackProfile;
     const hit = enemies.filter((e) => Math.hypot(e.x - actor.x, e.y - actor.y) < range);
     hit.forEach((enemy) => {
-      enemy.hp -= this.calcDamage(actor, enemy, 1);
+      enemy.hp -= this.calcDamage(actor, enemy, powerScale);
       this.spawnParticles(enemy.x, enemy.y, '#ffffff', 8);
     });
 
