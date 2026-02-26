@@ -212,6 +212,10 @@ class EmberFallGame {
   }
 
   updateManaRegen(dt) {
+    const inTown = this.world.zoneId === 'town';
+    this.party.members.forEach((m) => {
+      m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
+      if (inTown && m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
     this.party.members.forEach((m) => {
       m.mana = Math.min(m.stats.maxMana, m.mana + dt * 4.5);
       if (m.hp > 0) m.hp = Math.min(m.stats.maxHp, m.hp + dt * 0.8);
@@ -296,6 +300,64 @@ class EmberFallGame {
     }
   }
 
+  drawNpc(npc) {
+    const ctx = this.ctx;
+    const bob = Math.sin(this.elapsed * 5 + npc.x * 0.02) * 1.5;
+
+    // soft ground shadow
+    ctx.fillStyle = 'rgba(20, 24, 38, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(npc.x, npc.y + 20, 12, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // body cloak
+    ctx.fillStyle = npc.color;
+    ctx.fillRect(npc.x - 10, npc.y - 1 + bob, 20, 18);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(npc.x - 8, npc.y + 2 + bob, 16, 3);
+
+    // head
+    ctx.fillStyle = '#ffe8d2';
+    ctx.beginPath();
+    ctx.arc(npc.x, npc.y - 11 + bob, 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    // hair/hat accent
+    ctx.fillStyle = '#5c567f';
+    ctx.beginPath();
+    ctx.arc(npc.x, npc.y - 14 + bob, 10, Math.PI, 0);
+    ctx.fill();
+
+    // face details
+    ctx.fillStyle = '#2b315d';
+    ctx.fillRect(npc.x - 4, npc.y - 14 + bob, 2, 2);
+    ctx.fillRect(npc.x + 2, npc.y - 14 + bob, 2, 2);
+    ctx.fillRect(npc.x - 1, npc.y - 9 + bob, 2, 1);
+    ctx.fillStyle = '#ffb4c7';
+    ctx.fillRect(npc.x - 7, npc.y - 10 + bob, 2, 2);
+    ctx.fillRect(npc.x + 5, npc.y - 10 + bob, 2, 2);
+
+    // quest marker sparkle
+    if (npc.questId) {
+      ctx.fillStyle = '#ffe37a';
+      ctx.beginPath();
+      ctx.arc(npc.x, npc.y - 29 + bob, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(npc.x - 1, npc.y - 37 + bob, 2, 16);
+    }
+
+    // name plate bubble for readability
+    const nameW = Math.max(40, npc.name.length * 6.5);
+    ctx.fillStyle = 'rgba(24, 28, 50, 0.72)';
+    ctx.fillRect(npc.x - nameW / 2, npc.y - 42, nameW, 14);
+    ctx.strokeStyle = 'rgba(163, 193, 255, 0.8)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(npc.x - nameW / 2, npc.y - 42, nameW, 14);
+    ctx.fillStyle = '#f4f9ff';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(npc.name, npc.x - nameW / 2 + 4, npc.y - 32);
+  }
+
   draw() {
     const ctx = this.ctx;
     const lead = this.party.active;
@@ -310,6 +372,7 @@ class EmberFallGame {
     this.world.draw(ctx);
 
     this.world.zone.npcs.forEach((npc) => {
+      this.drawNpc(npc);
       ctx.fillStyle = npc.color;
       ctx.beginPath();
       ctx.arc(npc.x, npc.y, 16, 0, Math.PI * 2);
