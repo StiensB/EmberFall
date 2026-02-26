@@ -143,19 +143,36 @@ class EmberFallGame {
       if (ok) {
         this.audio.playQuest();
         lines.push('Quest complete! Rewards delivered.');
+        if (npc.id === 'chef') lines.push('Kitchen shop unlocked. Next stop: Smith Bop.');
+        if (npc.id === 'smith') lines.push('Forge shop unlocked. Mayor Puffle wants to speak with you.');
+        if (npc.id === 'mayor') lines.push('Cavern gate unlocked. The boss is waiting beyond town.');
       }
     }
 
     if (npc.id === 'smith') {
-      this.activeShop = 'smith';
-      this.ui.openShop(npc.name);
-      lines.push('Browse my upgrades in the shop ledger.');
+      if (this.questSystem.isShopUnlocked('smith')) {
+        this.activeShop = 'smith';
+        this.ui.openShop(npc.name);
+        lines.push('Browse my upgrades in the shop ledger.');
+      } else {
+        this.activeShop = null;
+        lines.push('Finish my Spark Delivery first, then the forge opens.');
+      }
     }
 
     if (npc.id === 'chef') {
-      this.activeShop = 'chef';
-      this.ui.openShop(npc.name);
-      lines.push('Hungry? Grab some healing food from the shop ledger.');
+      if (this.questSystem.isShopUnlocked('chef')) {
+        this.activeShop = 'chef';
+        this.ui.openShop(npc.name);
+        lines.push('Hungry? Grab some healing food from the shop ledger.');
+      } else {
+        this.activeShop = null;
+        lines.push('Bring me 3 Slime Gel and I'll open the kitchen shop.');
+      }
+    }
+
+    if (npc.id === 'mayor' && !this.questSystem.isAreaUnlocked('cavern')) {
+      lines.push('Chef then smith, then me. That's the official heroic paperwork route.');
     }
 
     this.dialogueQueue = lines;
@@ -216,14 +233,18 @@ class EmberFallGame {
 
     const exit = this.world.getExitAt(lead.x, lead.y);
     if (exit) {
-      this.world.changeZone(exit.to);
-      this.activeShop = null;
-      this.party.members.forEach((m) => {
-        m.x = exit.spawn.x + Math.random() * 20;
-        m.y = exit.spawn.y + Math.random() * 20;
-      });
-      this.spawnEnemies();
-      this.messages.unshift(`Entered ${this.world.zone.name}`);
+      if (exit.requiresArea && !this.questSystem.isAreaUnlocked(exit.requiresArea)) {
+        this.messages.unshift(exit.lockedMessage || 'This path is locked.');
+      } else {
+        this.world.changeZone(exit.to);
+        this.activeShop = null;
+        this.party.members.forEach((m) => {
+          m.x = exit.spawn.x + Math.random() * 20;
+          m.y = exit.spawn.y + Math.random() * 20;
+        });
+        this.spawnEnemies();
+        this.messages.unshift(`Entered ${this.world.zone.name}`);
+      }
     }
   }
 
@@ -246,6 +267,7 @@ class EmberFallGame {
 
   getShopStock() {
     if (!this.activeShop) return [];
+    if (!this.questSystem.isShopUnlocked(this.activeShop)) return [];
     return SHOP_STOCK[this.activeShop] || [];
   }
 

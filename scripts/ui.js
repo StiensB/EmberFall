@@ -114,13 +114,14 @@ export class UIController {
     }
 
     if (this.menuTab === 'map') {
-      this.elements.menuContent.innerHTML = `<h3>Region</h3><p>${world.zone.name}</p><p>Use glowing rectangles for zone exits.</p><p>Boss waits in Giggle Cavern.</p>`;
+      const cavernOpen = questSystem.isAreaUnlocked('cavern');
+      this.elements.menuContent.innerHTML = `<h3>Region</h3><p>${world.zone.name}</p><p>Use glowing rectangles for zone exits.</p><p>${cavernOpen ? 'Boss waits in Giggle Cavern.' : 'Giggle Cavern is sealed until the mayor grants clearance.'}</p>`;
     }
 
     if (this.menuTab === 'shop') {
       const shopStock = this.game.getShopStock();
       if (!shopStock.length) {
-        this.elements.menuContent.innerHTML = '<h3>Shop</h3><p>Talk to the smith or chef in town to open a shop.</p>';
+        this.elements.menuContent.innerHTML = '<h3>Shop</h3><p>Complete NPC quest chains to unlock each town shop.</p>';
         return;
       }
 
